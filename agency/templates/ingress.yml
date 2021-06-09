@@ -1,0 +1,50 @@
+{{- if .Values.ingress.enabled -}}
+{{- $name := .Release.Name -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $name }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  {{- with .Values.ingress.admin }}
+  {{- range .hostnames }}
+  - host: {{ . | quote }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ $name }}-admin
+          servicePort: admin
+        pathType: ImplementationSpecific
+  {{- end }}{{ end }}
+  {{- with .Values.ingress.rescheck }}
+  {{- range .hostnames }}
+  - host: {{ . | quote }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ $name }}-admin
+          servicePort: rescheck
+        pathType: ImplementationSpecific
+  {{- end }}{{ end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+  - hosts:
+    {{ with .Values.ingress.admin }}
+    {{ range .hostnames }}
+    - {{ . | quote }}
+    {{- end }}{{ end }}
+    {{- with .Values.ingress.rescheck }}
+    {{- range .hostnames }}
+    - {{ . | quote }}
+    {{- end }}{{ end }}
+    secretName: {{ $name }}-cert
+  {{- end }}
+{{- end }}

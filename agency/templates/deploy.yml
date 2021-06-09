@@ -1,0 +1,181 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.replicas.web }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
+    spec:
+      initContainers:
+      - name: initdb
+        image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 100
+          runAsGroup: 101
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: app
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: 
+                name: agency.{{ include "clusterName" . }}.credentials
+                key: password
+        - name: CONFIG_PATH
+          value: /config/agency.ini
+        command: [ initialize_agency_db, $(CONFIG_PATH)#agency ]
+      containers:
+      - name: api
+        image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 100
+          runAsGroup: 101
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: app
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: 
+              name: agency.{{ include "clusterName" . }}.credentials
+              key: password
+        - name: CONFIG_PATH
+          value: /config/agency.ini
+        - name: UWSGI_ARGS
+          value: --threads 8 --processes 4 --buffer-size 32768
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secret
+              key: session
+        - name: PW_RECOVERY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secret
+              key: passrecovery
+        {{- with .Values.agency.companies }}
+        {{- if .enabled }}
+        - name: SHARED_SECRET
+          valueFrom:
+            secretKeyRef:
+              {{- if .shared_secret.source }}
+              name: {{ .shared_secret.source }}
+              {{- else }}
+              name: {{ $.Release.Name }}-secret
+              {{- end }}
+              key: shared_secret
+        {{- end }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.api | nindent 10 }}
+      - name: admin
+        image: {{ .Values.image.registry -}} /agency/client: {{- include "clientImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+        - name: TARGET
+          value: localhost:6543
+        - name: AGENCY_VERSION
+          value: {{ include "appVersion" . | quote }}
+        - name: AGENCY_ENV
+          value: {{ .Values.agency.env }}
+        - name: AGENCY_SUPPORTWIDGET
+          value: {{ .Values.agency.supportWidget | quote }}
+        - name: AGENCY_ISFORTV
+          value: {{ .Values.agency.forTV | quote }}
+        {{- with .Values.ingress.rescheck }}
+        - name: AGENCY_RESCHECK_URL
+          value: {{ index .hostnames 0 }}
+        {{- end }}
+        {{- if .Values.ingress.enabled }}
+        - name: AGENCY_API
+          value: {{ if .Values.ingress.tls }}https://{{ else }}http://{{ end }}
+              {{- index .Values.ingress.admin.hostnames 0 }}/api
+        {{- end }}
+        {{- if .Values.agency.companies.enabled }}
+        - name: COMPANIES_API
+          value: {{ .Values.agency.companies.externalUrl }}
+        {{- end }}
+        - name: NGINX_LISTEN
+          value: "*:8080"
+        ports:
+        - containerPort: 8080
+          name: admin
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /api/whoami
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 15
+          timeoutSeconds: 5
+        resources:
+          {{- toYaml .Values.resources.web | nindent 10 }}
+      {{- if .Values.agency.rescheck }}
+      - name: rescheck
+        image: {{ .Values.image.registry -}} /agency/rescheck: {{- include "rescheckImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+        - name: TARGET
+          value: localhost:6543
+        - name: AGENCY_VERSION
+          value: {{ include "appVersion" . | quote }}
+        - name: AGENCY_ENV
+          value: {{ .Values.agency.env }}
+        - name: AGENCY_SUPPORTWIDGET
+          value: {{ .Values.agency.supportWidget | quote }}
+        - name: AGENCY_ISFORTV
+          value: {{ .Values.agency.forTV | quote }}
+        {{- if .Values.ingress.enabled }}
+        - name: AGENCY_API
+          value: {{ if .Values.ingress.tls }}https://{{ else }}http://{{ end }}
+              {{- index .Values.ingress.admin.hostnames 0 }}/api
+        {{- end }}
+        {{- if .Values.agency.companies.enabled }}
+        - name: COMPANIES_API
+          value: {{ .Values.agency.companies.externalUrl }}
+        {{- end }}
+        - name: NGINX_LISTEN
+          value: "*:8081"
+        ports:
+        - containerPort: 8081
+          name: rescheck
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources.web | nindent 10 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-config
+          items:
+          - key: agency.ini
+            path: app/agency.ini

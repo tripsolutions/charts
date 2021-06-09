@@ -1,0 +1,86 @@
+replicas:
+  api: 1
+  frontend: 1
+  db: 1
+
+# to override chart app version (advertised and tag)
+version: "0.0.1"
+
+image:
+  registry: eu.gcr.io/tripsol
+  pullPolicy: IfNotPresent
+  # # to override tag for all images
+  tag: "master-r8"
+  # # or for particular images
+  # serverTag: "master-r1"
+  # clientTag: "master-r1"
+
+ingress:
+  enabled: false
+#   admin:
+#     hostnames: 
+#     - agency-ro-staging.dyn.tripsolutions.co.uk
+#   tls: true
+#   annotations: 
+#     cert-manager.io/cluster-issuer: letsencrypt-staging
+#     external-dns.alpha.kubernetes.io/hostname: agency-ro-staging.dyn.tripsolutions.co.uk
+
+companies:
+  env: test
+  jwt: 
+    https_only_cookies: null
+    samesite: null
+    domains: []
+  agencyURL: https://sistem.etripagency.ro/api
+  cors:
+    # enable CORS for the websites (list clients)
+    free: false
+    websites: []
+    # urls:
+    #  - https://example.com/
+
+db:
+  teamId: companies
+  controller: false
+  version: 13
+  parameters: 
+    max_connections: "20"
+    shared_buffers: 1GB
+    temp_buffers: 32MB
+    work_mem: 32MB 
+    timezone: "Europe/Berlin"
+    maintenance_work_mem: 32MB
+    autovacuum_work_mem: 32MB
+    temp_file_limit: 2GB
+    effective_cache_size: 2GB
+    vacuum_cost_delay: 20ms
+    effective_io_concurrency: "1"
+    jit: "on"
+    log_autovacuum_min_duration: "5000"
+    log_checkpoints: "off"
+    log_connections: "off"
+    log_disconnections: "off"
+    log_min_duration_statement: "5000"
+    log_statement: "none"
+    log_rotation_age: "1d"
+    log_rotation_size: "10240"
+  volume:
+    size: 5Gi
+
+resources:
+  # don't override operator defaults
+  db: {}
+  frontend:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  api:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi

@@ -1,0 +1,345 @@
+replicas:
+  web: 1
+  db: 1
+
+version: 3.0.26
+
+ingress:
+  enabled: true
+  admin:
+    hostnames: 
+    - etrip-install-name.dyn.tripsolutions.co.uk
+#  frontends:
+#    frontend1: 
+#      hostnames:
+#      - etrip-frontend-install.dyn.tripsolutions.co.uk
+#  admin:
+#     hostnames: 
+#     - etrip-install-name.dyn.tripsolutions.co.uk
+#   b2b:
+#     hostnames:
+#     - etrip-b2b-install-name.dyn.tripsolutions.co.uk
+#   tls: true
+#   annotations: 
+#     cert-manager.io/cluster-issuer: letsencrypt-staging
+#     external-dns.alpha.kubernetes.io/hostname: etrip-install-name.dyn.tripsolutions.co.uk
+
+etrip:
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol  
+    name: etrip
+    # tag: 2.1.20
+  use_redis: true
+  phpValues: &phpValues
+    session.gc_maxlifetime: 14400
+  fpm: 
+    main:
+      port: 8000
+      max: 16
+      start: 5
+      low: 2
+      high: 10
+      phpValues:
+        <<: *phpValues
+    ws:
+      port: 8001
+      max: 32
+      start: 5
+      low: 2
+      high: 16
+      phpValues:
+        <<: *phpValues
+        session.gc_maxlifetime: 900
+    ws_prio:
+      disabled: true
+      port: 8001
+      max: 4
+      start: 2
+      low: 1
+      high: 4
+      phpValues:
+        <<: *phpValues
+    slow:
+      port: 8002
+      max: 4
+      start: 1
+      low: 1
+      high: 2
+      phpValues:
+        <<: *phpValues
+    b2b:
+      port: 8003
+      max: 16
+      start: 5
+      low: 2
+      high: 10
+      phpValues:
+        <<: *phpValues
+  passwords: {}
+  #  user: $apr1$foobar
+  trusted_ips:
+  - 127.0.0.0/8
+  - 10.0.0.0/8
+  - 192.168.0.0/24
+  - 85.195.84.14 # anteros
+  - 185.19.218.74 # himeros
+  - 146.0.255.94 # helios
+  - 85.195.110.34 # hedylogos
+  - 85.195.110.14 # pothos
+  - 51.195.88.84 # worker1.ovh-cloud
+  - 141.95.2.150 # worker2.ovh-cloud
+  other_trusted_ips: []
+  slow_urls:
+  - /reports/client_addresses.php 
+  - /contract/hotel/main.php
+  - /documents/email_letter2.php
+  other_slow_urls: []
+  searchlogs:
+    enabled: false
+    table: default
+    host: etrip-searchlogs-cluster
+    username: searchlogs
+    dbname: searchlogs
+    port: 5432
+    is_operator: true
+    password:
+      # set is_operator=false for the values below to take effect
+      fromSecret: secret-name
+      fromSecretKey: password
+  priority_api_users: []
+  config: |
+    <configuration>
+      <main>
+        <version>2.1.20</version>
+        <smtp_server>
+          <host>mailu.mail.svc</host>
+        </smtp_server>
+        <market>ro</market>
+        <client>
+          <id>default</id>
+          <name>Trip Solutions Ltd</name>
+          <documentation>
+            <letter/>
+          </documentation>
+        </client>
+      </main>
+      <priorities/>
+      <email_types/>
+    </configuration>
+
+elogger:
+  enabled: false
+  db:
+    table: default
+    host: etrip-logging-cluster
+    username: elogger
+    dbname: elogger
+    port: 5432
+    is_operator: true
+    password:
+      # set is_operator=false for the values below to take effect
+      fromSecret: secret-name
+      fromSecretKey: password
+
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: elogger
+    tag: latest
+
+smtpgate:
+  enabled: false
+  # domains: etrip.tripsolutions.co.uk
+  # relayhost: smtphost
+  user: false
+  password: password
+  always_bcc: false
+
+b2b:
+  enabled: false
+  config:
+    cors: false
+    etripPath: /var/www/localhost
+    banned: []
+    bannedIPs: []
+    customFunctions: default.inc.php
+    defaultBookingType: other
+    defaultFromEmail: noreply@tripsolutions.co.uk
+    defaultFromName: Tripsolutions Ltd
+    defaultReceipients: []
+    defaultSubject: New reservation
+    defaultReplyTo: b2b@tripsolutions.co.uk
+    defaultBounceEmail: bounce@tripsolutions.co.uk
+    pdfGenerator: wkhtmltopdf
+    pdfPrinterOptions: ""
+    customPrinterHTML: ""
+    showBlackedout: false
+    request:
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: New client request
+    package:
+      bookingType: package
+      fromEmail: ""
+      fromName: ""
+      defaultCountry: null
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Package booking {booking_id} destination {destination}
+    tour:
+      bookingType: tour
+      fromEmail: ""
+      fromName: ""
+      defaultCountry: null
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Tour booking {booking_id} destination {destination}
+    hotel:
+      bookingType: hotel
+      fromEmail: ""
+      fromName: ""
+      defaultCountry: null
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Hotel booking {booking_id} destination {destination}
+    flight:
+      bookingType: flight
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Flight booking {booking_id} destination {destination}
+      searches: [xmlpro_published]
+    cruise:
+      bookingType: cruise
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Cruise booking {booking_id} destination {destination}
+
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: etrip-b2b
+    tag: latest
+
+frontends:
+  # old style frontends
+  enabled: false
+
+  # image used as init container with custom cmd to copy frontends code
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: sample/frontneds
+    tag: latest
+  
+  # relates to endpoints 
+  endpoints:
+    - frontend1
+
+api:
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: etrip-py
+    tag: latest
+
+cron: []
+# template below:
+# - name: sample
+#   schedule: "*/5 * * * *"
+#   command: /bin/true
+#   doneHistory: 3
+#   failedHistory: 1
+#   resources: {} 
+
+db: 
+  use_operator: true
+  operator_install:
+    # for use_operator = true
+    teamId: etrip
+    dbParameters:
+      max_connections: "20"
+      shared_buffers: 1GB
+      temp_buffers: 32MB
+      work_mem: 32MB 
+      timezone: "Europe/Berlin"
+      maintenance_work_mem: 32MB
+      autovacuum_work_mem: 32MB
+      temp_file_limit: 2GB
+      effective_cache_size: 2GB
+      vacuum_cost_delay: 20ms
+      effective_io_concurrency: "1"
+      jit: "on"
+      log_autovacuum_min_duration: "5000"
+      log_checkpoints: "off"
+      log_connections: "off"
+      log_disconnections: "off"
+      log_min_duration_statement: "5000"
+      log_statement: "none"
+      log_rotation_age: "1d"
+      log_rotation_size: "10240"
+    dbVolume:
+      size: 5Gi
+    # don't override operator defaults
+    resources: {}
+  custom_install: 
+    # for use_operator = false
+    host: tripsol-clients.default.svc
+    username: etrip
+    dbname: etrip
+    port: 5432
+    password:
+      useSecret: true
+      clearText: example-password
+      fromSecret: secret-name
+      fromSecretKey: secret-key
+
+resources:
+  web:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  fpm:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  cron:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  redis:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  smtp:
+    limits:
+      cpu: "1"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi

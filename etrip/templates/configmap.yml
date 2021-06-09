@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "labels" . | nindent 4 }}
+data:
+  config.xml: |
+    {{- .Values.etrip.config | nindent 4 }}
+  config.json: |
+    {{- toJson .Values.b2b.config | nindent 4 }}
+  etrip-nginx.conf: |
+    {{- if eq (len .Values.etrip.passwords) 0 }}
+    geo $trusted { default 1; }
+    {{- else }}
+    geo $trusted { 
+      default 0;
+
+      # this list should be left defined in master values
+      {{- range $value := .Values.etrip.trusted_ips }}
+      {{ $value }} 1;
+      {{- end }}
+
+      # this list should be used to add install-specific trusted IPs
+      {{- range $value := .Values.etrip.other_trusted_ips }}
+      {{ $value }} 1;
+      {{- end }}
+    }
+    {{- end }}
+    map $request_uri $slow { 
+      default 0; 
+
+      # this list should be left defined in master values
+      {{- range $value := .Values.etrip.slow_urls }}
+      {{ $value }} 1;
+      {{- end }}
+
+      # this list should be used to add install-specific URLs
+      {{- range $value := .Values.etrip.other_slow_urls }}
+      {{ $value }} 2;
+      {{- end }}
+    }
+
+    map $remote_user $webservice { 
+      default webservice;
+
+      {{- range $value := .Values.etrip.priority_api_users }}
+      {{ $value }} webservice_prio;
+      {{- end }}
+    }
+  {{- if ne (len .Values.etrip.passwords) 0 }}
+  htpasswd: |
+    {{- range $key, $val := .Values.etrip.passwords }}
+    {{$key}}:{{$val}}
+    {{- end }}
+  {{- end }}
+  etrip-fpm.ini: |
+    [global]
+    daemonize = no
+
+    {{- range $key, $val := .Values.etrip.fpm }}
+    {{- if not ($val.disabled) }}
+
+    [fpm-{{$key}}]
+    listen = {{ $val.port }}
+    user = nginx
+    group = nginx
+    pm = {{ $val.mode | default "dynamic" }}
+    pm.max_children = {{ $val.max }}
+    pm.start_servers = {{ $val.start }}
+    pm.min_spare_servers = {{ $val.low }}
+    pm.max_spare_servers = {{ $val.high }}
+    ping.path = /ping
+    request_terminate_timeout = 300
+    clear_env = no
+    {{- with $val.phpValues -}}
+    {{- range $pkey, $pval := . }}
+    php_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- with $val.phpAdminValues -}}
+    {{- range $pkey, $pval := . }}
+    php_admin_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- end }}
+    {{- end }}
+  {{- if .Values.frontends.enabled }}
+  frontends-nginx.conf: |
+    user nginx;
+    worker_processes 1;
+    error_log /dev/stderr warn;
+    pid /var/run/nginx.pid;
+    daemon off;
+    events {
+      worker_connections  1024;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+        '$status $body_bytes_sent "$http_referer" '
+        '"$http_user_agent" "$http_x_forwarded_for"';
+      access_log  /dev/stdout main;
+      sendfile        on;
+      #tcp_nopush     on;
+      keepalive_timeout  65;
+      #gzip  on;
+
+      upstream web_frontend {
+        {{- if .Values.etrip.fpm.frontends }}
+        server localhost:{{ .Values.etrip.fpm.frontends.port }};
+        {{- else }}
+        server localhost:{{ .Values.etrip.fpm.main.port }};
+        {{- end }}
+      }
+
+      set_real_ip_from 0.0.0.0/0;
+      real_ip_header X-Forwarded-For;
+      real_ip_recursive on;
+
+      {{- range $idx, $key := .Values.frontends.endpoints }}
+      server {
+        listen *:{{ add 82 $idx }};
+        server_name ~^.*$;
+
+        root /frontends/{{ $key }};
+
+        location @404 { internal; }
+
+        index index.php;
+
+        location ~ \.php {
+          fastcgi_split_path_info ^(.+\.php)(/.+)$;
+          fastcgi_index index.php;
+          fastcgi_intercept_errors off;
+          error_page 404 @404;
+          include /etc/nginx/fastcgi.conf;
+
+          fastcgi_pass web_frontend;
+        }
+      }
+      {{- end }}
+    }
+  {{- end }}
+  {{- if .Values.api.enabled }}
+  api.ini: |
+    [app:main]
+    use = egg:etrip
+
+    pyramid.reload_templates = false
+    pyramid.debug_authorization = false
+    pyramid.debug_notfound = false
+    pyramid.debug_routematch = false
+    pyramid.default_locale_name = en
+
+    sqlalchemy.url = postgresql+psycopg2://$PG_USER:$PG_PASS@$PG_HOST/$PG_DBNAME
+    retry.attempts = 3
+
+    [pshell]
+    setup = etrip.pshell.setup
+
+    [alembic]
+    script_location = %(here)s/alembic
+    file_template = %%(year)d%%(month).2d%%(day).2d_%%(rev)s
+
+    [server:main]
+    use = egg:waitress#main
+    listen = 0.0.0.0:6543
+
+    [loggers]
+    keys = root, etrip, sqlalchemy
+
+    [handlers]
+    keys = console
+
+    [formatters]
+    keys = generic
+
+    [logger_root]
+    level = INFO
+    handlers = console
+
+    [logger_etrip]
+    level = DEBUG
+    handlers =
+    qualname = etrip
+
+    [logger_sqlalchemy]
+    level = WARN
+    handlers =
+    qualname = sqlalchemy.engine
+
+    [handler_console]
+    class = StreamHandler
+    args = (sys.stderr,)
+    level = NOTSET
+    formatter = generic
+
+    [formatter_generic]
+    format = %(asctime)s %(levelname)-5.5s [%(name)s:%(lineno)s][%(threadName)s] %(message)s
+  {{- end}}

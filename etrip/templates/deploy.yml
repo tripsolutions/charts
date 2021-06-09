@@ -1,0 +1,371 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.replicas.web }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
+    spec:
+      {{- if .Values.frontends.enabled}}
+      initContainers:
+      - name: copy-frontends
+        {{- include "frontendsImage" . | nindent 8 }}
+        volumeMounts:
+        - mountPath: /dest
+          name: frontends
+        command:
+          - /bin/sh
+          - -c
+          - cp -r /frontends/* /dest/
+      {{- end}}
+      containers:
+      - name: fpm
+        {{- include "etripImage" . | nindent 8 }}
+        args: [ php-fpm5, -y, /config/fpm.ini ]
+        # livenessProbe:
+        #   httpGet:
+        #     path: /ping
+        #     port: 80
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 30
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: etrip
+        - mountPath: /tmp/elogger
+          name: elogger
+        {{- if .Values.frontends.enabled}}
+        - mountPath: /frontends
+          name: frontends
+        {{- end}}
+        env:
+        - name: DB_PASSWORD
+          {{- if .Values.db.use_operator }}
+          valueFrom:
+            secretKeyRef: 
+              name: etrip. {{- include "clusterName" . -}} .credentials
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.db.custom_install.password.useSecret }}
+              name: {{ .Values.db.custom_install.password.fromSecret }}
+              key: {{ .Values.db.custom_install.password.fromSecretKey }}
+              {{- else }}
+              name: {{ .Release.Name }}-secrets
+              key: dbpassword
+              {{- end }}
+          {{- end }}
+        - name: ETRIP_CONFIG
+          value: /config
+        - name: ETRIP_DSN
+          {{ if .Values.db.use_operator -}}
+          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
+            {{- include "clusterName" . }}
+          {{- else -}}
+          value: sslmode=disable password=$(DB_PASSWORD) user= 
+            {{- .Values.db.custom_install.username }} dbname=
+            {{- .Values.db.custom_install.dbname}} host=
+            {{- .Values.db.custom_install.host }} port=
+            {{- .Values.db.custom_install.port }}
+          {{- end }}
+        - name: ETRIP_DSN_RO
+          {{ if .Values.db.use_operator -}}
+          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
+            {{- include "clusterName" . }}-repl connect_timeout=1
+          {{- else -}}
+          value: sslmode=disable password=$(DB_PASSWORD) user= 
+            {{- .Values.db.custom_install.username }} dbname=
+            {{- .Values.db.custom_install.dbname}} host=
+            {{- .Values.db.custom_install.host }} port=
+            {{- .Values.db.custom_install.port }}
+          {{- end }}
+        {{- if .Values.etrip.use_redis }}
+        - name: PHP_SAVE_HANDLER
+          value: redis
+        - name: REDIS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: session
+        - name: PHP_SAVE_PATH
+          value: tcp://{{ .Release.Name }}-redis:6379?auth=$(REDIS_SECRET)
+        {{- end }}
+        {{- if $.Values.etrip.searchlogs.enabled }}
+        - name: SEARCHLOGS_DBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.etrip.searchlogs.is_operator }}
+              name: {{ printf "%s.%s.credentials" .Values.etrip.searchlogs.username .Values.etrip.searchlogs.host }}
+              key: password
+              {{- else }}
+              name: {{ .Values.etrip.searchlogs.password.fromSecret }}
+              key: {{ .Values.etrip.searchlogs.password.fromSecretKey }}
+              {{- end }}
+        - name: ETRIP_SEARCHLOGS_DSN
+          value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
+            {{- $.Values.etrip.searchlogs.username }} dbname=
+            {{- $.Values.etrip.searchlogs.dbname }} host=
+            {{- $.Values.etrip.searchlogs.host }} port=
+            {{- $.Values.etrip.searchlogs.port }}
+        - name: ETRIP_SEARCHLOGS_TABLE
+          value: {{ $.Values.etrip.searchlogs.table }}
+        {{- end }}
+        - name: ETRIP_LOGDIR
+          value: /tmp/elogger
+        - name: ETRIP_VERSION
+          value: {{ .Values.version | quote }}
+        {{ if .Values.smtpgate.enabled -}}
+        - name: ETRIP_SMTP_HOST
+          value: localhost
+        {{ end -}}
+        resources:
+          {{- toYaml .Values.resources.fpm | nindent 10 }}
+      - name: admin
+        {{- include "etripImage" . | nindent 8 }}
+        args: [ nginx ]
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: etrip
+        env:
+        - name: FPM_TARGET_WEBAPP
+          value: localhost:{{ .Values.etrip.fpm.main.port }}
+        - name: FPM_TARGET_WS
+          value: localhost:{{ .Values.etrip.fpm.ws.port }}
+        - name: FPM_TARGET_WS_PRIO
+          value: localhost:{{ .Values.etrip.fpm.ws_prio.port }}
+        - name: FPM_TARGET_SLOW
+          value: localhost:{{ .Values.etrip.fpm.slow.port }}
+        - name: NGINX_PORT
+          value: "80"
+        - name: ETRIP_CONFIG
+          value: /config
+        - name: ETRIP_PASSWD
+          value: /config
+        # this is wrong in etrip's docker image, will fix but for now patching
+        # from the chart instead
+        - name: PHP_ERROR_REPORTING
+          value: "22527"
+        ports:
+        - containerPort: 80
+          name: admin
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources.web | nindent 10 }}
+      {{- if .Values.b2b.enabled }}
+      - name: b2b
+        {{- with .Values.b2b.image }}
+        image: {{ .registry -}} / {{- .name -}} : 
+          {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+        imagePullPolicy: {{ .pullPolicy }}
+        {{- end }}
+        env:
+        - name: NGINX_PORT
+          value: "81"
+        - name: TARGET_FPM
+          value: localhost:{{ .Values.etrip.fpm.b2b.port }}
+        ports:
+        - containerPort: 81
+          name: b2b
+          protocol: TCP
+      {{- end }}
+      {{- if .Values.frontends.enabled }}
+      - name: frontends
+        image: nginx:stable-alpine
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: frontends
+        - mountPath: /frontends
+          name: frontends
+        ports:
+        {{- range $idx, $key := .Values.frontends.endpoints }}
+        - containerPort: {{ add 82 $idx }}
+          name: frontend-{{ $key }}
+          protocol: TCP
+        {{- end }}
+        command: [ nginx, -c, /config/nginx.conf ]
+      {{- end }}
+      {{- if .Values.api.enabled }}
+      - name: api
+        {{- with .Values.api.image }}
+        image: {{ .registry -}} / {{- .name -}} : 
+          {{- .tag }}
+        imagePullPolicy: {{ .pullPolicy }}
+        {{- end }}
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: api
+        ports:
+        - containerPort: 6543
+          name: api
+          protocol: TCP
+        env:
+        - name: PG_PASS
+          {{- if .Values.db.use_operator }}
+          valueFrom:
+            secretKeyRef: 
+              name: etrip. {{- include "clusterName" . -}} .credentials
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.db.custom_install.password.useSecret }}
+              name: {{ .Values.db.custom_install.password.fromSecret }}
+              key: {{ .Values.db.custom_install.password.fromSecretKey }}
+              {{- else }}
+              name: {{ .Release.Name }}-secrets
+              key: dbpassword
+              {{- end }}
+          {{- end }}
+        - name: PG_USER
+          {{- if .Values.db.use_operator }}
+          value: etrip
+          {{- else }}
+          value: {{ .Values.db.custom_install.username -}}
+          {{- end }}
+        - name: PG_HOST
+          {{ if .Values.db.use_operator -}}
+          value: {{ include "clusterName" . }}
+          {{- else }}
+          value: {{ .Values.db.custom_install.host -}} : 
+            {{- .Values.db.custom_install.port }}
+          {{ end }}
+        - name: PG_DBNAME
+          {{ if .Values.db.use_operator -}}
+          value: etrip
+          {{- else -}}
+          value: {{ .Values.db.custom_install.dbname -}}
+          {{- end }}
+        - name: CONFIG_PATH
+          value: /config/api.ini
+      {{- end }}
+      {{- if .Values.elogger.enabled }}
+      - name: sendlogs
+        {{- with .Values.elogger.image }}
+        image: {{ .registry -}} / {{- .name -}} : 
+          {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+        imagePullPolicy: {{ .pullPolicy }}
+        {{ end -}}
+        env:
+        - name: ENV_CONFIG
+          value: "true"
+        - name: ELOGGER_DIR
+          value: /tmp/elogger
+        - name: ELOGGER_DBHOST
+          value: {{ .Values.elogger.db.host }}
+        - name: ELOGGER_DBNAME
+          value: {{ .Values.elogger.db.dbname }}
+        - name: ELOGGER_DBUSER
+          value: {{ .Values.elogger.db.username }}
+        - name: ELOGGER_DBPASS
+          valueFrom:
+            secretKeyRef: 
+              {{- if .Values.elogger.db.is_operator }}
+              name: {{ printf "%s.%s.credentials" .Values.elogger.db.username .Values.elogger.db.host }}
+              key: password
+              {{- else }}
+              name: {{ .Values.elogger.db.password.fromSecret }}
+              key: {{ .Values.elogger.db.password.fromSecretKey }}
+              {{- end }}
+        - name: ELOGGER_DBPORT
+          value: {{ .Values.elogger.db.port | quote }}
+        - name: ELOGGER_TABLE
+          value: {{ .Values.elogger.db.table }}
+        command:
+          - sh
+          - -c 
+          - |
+            while true; do
+              sendlogs
+              sleep 60
+            done
+        volumeMounts:
+        - mountPath: /tmp/elogger
+          name: elogger
+      {{- end }}
+      {{- if .Values.smtpgate.enabled }}
+      - name: smtp
+        image: boky/postfix:latest
+        {{- if .Values.smtpgate.always_bcc }}
+        command:
+          - sh
+          - -c 
+          - |
+            postconf -e always_bcc={{ .Values.smtpgate.always_bcc }}
+            /run.sh
+        {{- end }}
+        env:
+        - name: HOSTNAME
+          value: {{ .Values.smtpgate.hostname | default "smtp-gate" }}
+        - name: ALLOWED_SENDER_DOMAINS
+          value: {{ .Values.smtpgate.domains }}
+        {{- with .Values.smtpgate.relayhost }}
+        - name: RELAYHOST
+          value: {{ . }}
+        {{- end }}
+        {{- if .Values.smtpgate.user }}
+        - name: RELAYHOST_USERNAME
+          value: {{ .Values.smtpgate.user }}
+        - name: RELAYHOST_PASSWORD
+          value: {{ .Values.smtpgate.password | quote }}
+        {{- end }}
+        ports:
+        - containerPort: 25
+          name: smtp
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources.smtp | nindent 10 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-config
+          items:
+          - key: config.xml
+            path: etrip/config.xml
+          - key: config.json
+            path: etrip/config.json
+          - key: etrip-nginx.conf
+            path: etrip/nginx.conf
+          {{- if ne (len .Values.etrip.passwords) 0 }}
+          - key: htpasswd
+            path: etrip/htpasswd
+          {{- end }}
+          - key: etrip-fpm.ini
+            path: etrip/fpm.ini
+          {{- if .Values.frontends.enabled }}
+          - key: frontends-nginx.conf
+            path: frontends/nginx.conf
+          {{- end }}
+          {{- if .Values.api.enabled }}
+          - key: api.ini
+            path: api/api.ini
+          {{- end }}
+      - name: elogger
+        emptyDir: {}
+      {{- if .Values.frontends.enabled}}
+      - name: frontends
+        emptyDir: {}
+      {{- end}}

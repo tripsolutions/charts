@@ -1,0 +1,64 @@
+{{ if .Values.agency.cron.etripImport.enabled -}}
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+  name: {{ .Release.Name }}-etrip-import
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.agency.cron.etripImport.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: etrip-import
+        {{- include "labels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            cronjob-name: etrip-import
+            {{- include "labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: cron-etrip-import
+            image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsUser: 100
+              runAsGroup: 101
+            volumeMounts:
+            - mountPath: /config
+              name: config
+              subPath: app
+            env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: 
+                    name: agency.{{ include "clusterName" . }}.credentials
+                    key: password
+            - name: CONFIG_PATH
+              value: /config/agency.ini
+            command: [ python3 ]
+            args: 
+            - -c 
+            - |
+              from agency.tasks import update_etrip_supplier
+              from datetime import timedelta
+              update_etrip_supplier(
+                '/config/agency.ini#agency', 
+                not_updated_for=timedelta(hours=24)
+              )
+            resources:
+              {{- toYaml .Values.resources.cron | nindent 14 }}
+          volumes:
+          - name: config
+            configMap:
+              name: {{ .Release.Name }}-config
+              items:
+              - key: agency.ini
+                path: app/agency.ini
+{{- end }}

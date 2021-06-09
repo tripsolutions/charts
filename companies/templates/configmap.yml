@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+data:
+  config.ini: |
+    [app:companies]
+    use = egg:cumulus_companies
+
+    pyramid.reload_templates = false
+    pyramid.debug_authorization = false
+    pyramid.debug_notfound = false
+    pyramid.debug_routematch = false
+    pyramid.default_locale_name = en
+
+    sqlalchemy.url = postgresql+psycopg2://companies:$PG_PASS@
+        {{- include "clusterName" . -}} /companies
+    retry.attempts = 3
+
+    jwt.private_key = ${SESSION_SECRET}
+    {{- with .Values.companies.jwt.https_only_cookies }}
+    jwt.https_only_cookie = {{ . }}
+    {{- end }}
+    {{- with .Values.companies.jwt.samesite }}
+    jwt.samesite = {{ . }}
+    {{- end }}
+    jwt.expiration = 28800
+    jwt.leeway = 300
+    jwt.cookie_reissue_time = 1800
+    jwt.cookie_accept_header = true
+    jwt.cookie_prefer_header = true
+    jwt.cookie_path = /api
+    {{ if len .Values.companies.jwt.domains }}
+    jwt.cookie_domains = {{ range .Values.companies.jwt.domains }} {{ . }} {{ end }}
+    {{ end }}
+    shared_secret = ${SHARED_SECRET}
+
+    [pshell]
+    setup = cumulus_companies.pshell.setup
+
+    ###
+    # wsgi server configuration
+    ###
+
+    [alembic]
+    # path to migration scripts
+    script_location = companies:alembic
+    pyramid_config_file = /config/config.ini#companies
+    file_template = %%(year)d%%(month).2d%%(day).2d_%%(rev)s
+    # file_template = %%(rev)s_%%(slug)s
+
+    [pipeline:main]
+    pipeline = {{ if or .Values.companies.cors.free .Values.companies.cors.websites -}} cors {{ end -}} gzip companies
+
+    [server:main]
+    use = egg:gunicorn#main
+    bind = 0.0.0.0:6543
+    workers = 4
+
+    [filter:gzip]
+    use = egg:Paste#gzip
+    compress_level = 6
+
+    {{- with .Values.companies.cors -}}
+    {{ if or .free .websites }}
+    
+    [filter:cors]
+    use = egg:wsgicors#middleware
+    {{ if .free }}
+    free_origin = copy
+    free_headers = *
+    free_expose_headers = *
+    free_methods = HEAD, OPTIONS, GET, POST, DELETE
+    free_credentials = true
+    free_maxage = 180
+    {{ end }}
+
+    {{- if .websites }}
+    website_origin = {{ range .websites -}} {{ . }} {{ end }}
+    website_methods = GET
+    website_maxage = 180
+    {{- end }}
+
+    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
+    {{- end }}{{ end }}
+
+    [loggers]
+    keys = root, cumulus_companies, sqlalchemy
+
+    [handlers]
+    keys = console
+
+    [formatters]
+    keys = generic
+
+    [logger_root]
+    level = INFO
+    handlers = console
+
+    [logger_cumulus_companies]
+    level = DEBUG
+    handlers =
+    qualname = cumulus_companies
+
+    [logger_sqlalchemy]
+    level = WARN
+    handlers =
+    qualname = sqlalchemy.engine
+
+    [handler_console]
+    class = StreamHandler
+    args = (sys.stderr,)
+    level = NOTSET
+    formatter = generic
+
+    [formatter_generic]
+    format = %(asctime)s %(levelname)-5.5s [%(name)s:%(lineno)s][%(threadName)s] %(message)s

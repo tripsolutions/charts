@@ -1,0 +1,2 @@
+(c) Tripsolutions Ltd
+eTrip Agency {{ .Chart.AppVersion }}

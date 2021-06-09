@@ -1,0 +1,76 @@
+{{- if .Values.ingress.enabled -}}
+{{- $name := .Release.Name -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $name }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  {{- with .Values.ingress.admin }}
+  {{- range .hostnames }}
+  - host: {{ . | quote }}
+    http:
+      paths:
+      {{- if $.Values.api.enabled }}
+      - path: /api
+        pathType: Prefix
+        backend:
+          serviceName: {{ $name }}-admin
+          servicePort: api
+      {{- end }}
+      - path: /
+        pathType: Prefix
+        backend:
+          serviceName: {{ $name }}-admin
+          servicePort: admin
+  {{- end }}{{ end }}
+  {{- with .Values.ingress.b2b }}
+  {{- range .hostnames }}
+  - host: {{ . | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          serviceName: {{ $name }}-admin
+          servicePort: b2b
+  {{- end }}{{ end }}
+  {{- if .Values.frontends.enabled }}
+  {{- range $key, $val :=  .Values.ingress.frontends }}
+  {{- range $host := $val.hostnames}}
+  - host: {{ $host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          serviceName: {{ $name }}-admin
+          servicePort: frontend-{{ $key }}
+  {{- end}}{{ end }}{{ end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+  - hosts:
+    {{- with .Values.ingress.admin }}
+    {{- range .hostnames }}
+    - {{ . | quote }}
+    {{- end }}{{ end }}
+    {{- with .Values.ingress.b2b }}
+    {{- range .hostnames }}
+    - {{ . | quote }}
+    {{- end }}{{ end }}
+    {{- if .Values.frontends.enabled }}
+    {{- range $key, $val :=  .Values.ingress.frontends }}
+    {{- range $host := $val.hostnames}}
+    - {{ $host | quote }}
+    {{- end}}{{ end }}{{ end }}
+    secretName: {{ $name }}-cert
+  {{- end }}
+{{- end }}

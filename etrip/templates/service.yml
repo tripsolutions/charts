@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  ports:
+  - name: admin
+    port: 80
+    targetPort: admin
+  {{- if .Values.b2b.enabled }}
+  - name: b2b
+    port: 81
+    targetPort: b2b
+  {{- end }}
+  {{- if .Values.smtpgate.enabled }}
+  - name: smtp
+    port: 25
+    targetPort: smtp
+  {{- end }}
+  {{- if .Values.frontends.enabled }}
+  {{- range $idx, $key := .Values.frontends.endpoints }}
+  - name: frontend-{{ $key }}
+    port: {{ add 82 $idx }}
+    targetPort: frontend-{{ $key }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.api.enabled }}
+  - name: api
+    port: 6543
+    targetPort: api
+  {{- end }}
+  selector:
+    {{- include "selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  type: ClusterIP

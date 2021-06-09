@@ -1,0 +1,28 @@
+{{- if .Values.db.use_operator -}}
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: {{ include "clusterName" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.db.operator_install.controller }}
+  annotations:
+    acid.zalan.do/controller: {{ .Values.db.operator_install.controller }}
+  {{- end }}
+spec:
+  teamId: {{ .Values.db.operator_install.teamId }}
+  volume: {{ toYaml .Values.db.operator_install.dbVolume | nindent 4 }}
+  numberOfInstances: {{ .Values.replicas.db }}
+  users:
+    etrip: []
+  databases:
+    etrip: etrip
+  postgresql:
+    version: "11" # postgres >12 does not support OIDs
+    parameters: {{ toYaml .Values.db.operator_install.dbParameters | nindent 6}}
+  {{ with .Values.db.operator_install.resources -}}
+  resources: {{ toYaml . | nindent 4 }}
+  {{ end -}}
+  {{ with .Values.db.operator_install.clone -}}
+  clone: {{ toYaml . | nindent 4 }}
+  {{ end -}}
+{{- end -}}

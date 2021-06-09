@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  ports:
+  - name: admin
+    port: 80
+    targetPort: admin
+  {{- if .Values.agency.rescheck }}
+  - name: rescheck
+    port: 81
+    targetPort: rescheck
+  {{- end }}
+  selector:
+    {{- include "selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  type: ClusterIP

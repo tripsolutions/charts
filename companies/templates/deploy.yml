@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.replicas.api }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
+    spec:
+      initContainers:
+      - name: initdb
+        image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "serverImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 100
+          runAsGroup: 101
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: app
+        env:
+        - name: CONFIG_PATH
+          value: /config/config.ini
+        - name: PG_PASS
+          valueFrom:
+            secretKeyRef: 
+                name: companies.{{ include "clusterName" . }}.credentials
+                key: password
+        command: [ alembic, -c, /config/config.ini, upgrade, head ]
+      containers:
+      - name: api
+        image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "serverImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 100
+          runAsGroup: 101
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: app
+        env:
+        - name: CONFIG_PATH
+          value: /config/config.ini
+        - name: PG_PASS
+          valueFrom:
+            secretKeyRef: 
+              name: companies.{{ include "clusterName" . }}.credentials
+              key: password
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secret
+              key: auth_pkey
+        - name: SHARED_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secret
+              key: shared_secret
+        ports:
+        - containerPort: 6543
+          name: api
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources.api | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-config
+          items:
+          - key: config.ini
+            path: app/config.ini
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.replicas.frontend }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: {{ .Values.image.registry -}} /agency/companies-client: {{- include "clientImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: AGENCY_API
+          value: {{ .Values.companies.agencyURL }}
+        - name: COMPANIES_API
+          value: /api
+        - name: CUMULUS_VERSION
+          value: {{ include "appVersion" . }}
+        ports:
+        - containerPort: 80
+          name: frontend
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources.frontend | nindent 10 }}

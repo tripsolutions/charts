@@ -1,0 +1,25 @@
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: {{ include "clusterName" . }}
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.db.controller }}
+  annotations:
+    acid.zalan.do/controller: {{ .Values.db.controller }}
+  {{- end }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  teamId: {{ .Values.db.teamId }}
+  volume: {{ toYaml .Values.db.volume | nindent 4 }}
+  numberOfInstances: {{ .Values.replicas.db }}
+  users:
+    companies: []
+  databases:
+    companies: companies
+  postgresql:
+    version: {{ .Values.db.version | quote }}
+    parameters: {{ toYaml .Values.db.parameters | nindent 6}}
+  {{- if .Values.resources.db }}
+  resources: {{ toYaml .Values.resources.db | nindent 4 }}
+  {{- end }}

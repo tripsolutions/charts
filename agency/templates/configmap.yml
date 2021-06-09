@@ -1,0 +1,189 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+data:
+  agency.ini: |
+    [app:agency]
+    use = egg:agency
+
+    pyramid.reload_templates = false
+    pyramid.debug_authorization = false
+    pyramid.debug_notfound = false
+    pyramid.debug_routematch = false
+    pyramid.default_locale_name = en
+    pyramid.includes = pyramid_mailer pyramid_tm pyramid_genshi
+
+    session.type = dbm
+    session.data_dir = /tmp/data/sessions/data
+    session.lock_dir = /tmp/data/sessions/lock
+    session.key = agency_dev
+    session.secret = ${SESSION_SECRET}
+    auth.lost_password_secret = ${PW_RECOVERY_SECRET}
+    session.cookie_on_exception = true
+
+    {{- if not .Values.agency.companies.enabled }}
+    jwt.private_key = ${SESSION_SECRET}
+    {{- else }}
+    {{- /* when cumulus auth we have to specify algorithm */}}
+    jwt.algorithm = RS512
+    {{- end }}
+    {{- with .Values.agency.jwt.https_only_cookies }}
+    jwt.https_only_cookie = {{ . }}
+    {{- end }}
+    {{- with .Values.agency.jwt.samesite }}
+    jwt.samesite = {{ . }}
+    {{- end }}
+    jwt.expiration = 28800
+    jwt.leeway = 300
+    jwt.cookie_reissue_time = 1800
+    jwt.cookie_accept_header = true
+    jwt.cookie_prefer_header = true
+
+    sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "clusterName" . }}/agency
+    agency.market = {{ .Values.agency.market | default "en" }}
+
+    mail.host = {{ .Values.mail.smtp_host | default "localhost" }}
+    mail.default_sender = {{ .Values.mail.default_sender | default "ETrip Agency <noreply@etrip-agency.ro>" }}
+
+    cache.regions = default, etripdata, mondial, short_term
+    cache.default.type = memory
+    cache.default.expire = 60
+
+    cache.short_term.type = memory
+    cache.short_term.expire = 3600
+
+    cache.etripdata.type = file
+    cache.etripdata.data_dir = /tmp/data/etrip_cache/data
+    cache.etripdata.lock_dir = /tmp/data/etrip_cache/lock
+    cache.etripdata.expire = 1800
+
+    cache.mondial.type = file
+    cache.mondial.data_dir = /tmp/data/mondial_cache/data
+    cache.mondial.lock_dir = /tmp/data/mondial_cache/lock
+    cache.mondial.expire = 1800
+
+    {{ with .Values.agency.mondial -}}
+    mondial.auth_url = {{ .auth_url | default "https://pro-allianz-partners.apis.allianz.com/jwtauth/accesstoken" }}
+    mondial.contracts_url = {{ if .contracts_url -}}
+        {{- .contracts_url -}}
+        {{- else if eq .env "live" -}}
+            https://services.emagin.eu/ws/offer/pricing/v3.0/contracts
+        {{- else -}}
+            https://partner.magroup-webservice.com/ws/offer/pricing/v3.0/contracts
+        {{- end }}
+    mondial.issue_url = {{ if .issue_url -}}
+        {{- .issue_url -}}
+        {{- else if eq .env "live" -}}
+            https://services.emagin.eu/ws/purchase/booking/v3.0
+        {{- else -}}
+            https://partner.magroup-webservice.com/ws/purchase/booking/v3.0
+        {{- end }}
+    {{ end }}
+
+    {{ with .Values.agency.flexitech -}}
+    flexitech.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
+            api.flexitechsolutions.co.uk
+            {{- else -}} 
+            uat-api.flexitechsolutions.co.uk
+            {{- end }}
+    {{ end }}
+
+    {{ with .Values.agency.pnrConverter -}}
+    pnr_converter.url = https://api.pnrconverter.com/api
+    pnr_converter.public_key = {{ .public_key }}
+    pnr_converter.private_key = {{ .private_key}}
+    {{ end }}
+
+    {{ with .Values.agency.paysafe -}}
+    paysafe.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
+            https://api.paysafe.com
+            {{- else -}} 
+            https://api.test.paysafe.com
+            {{- end }}
+    {{ end }}
+
+    {{- with .Values.agency.companies }}
+    {{- if .enabled }}
+    cumulus.companies_url = {{ .url }}
+    cumulus.shared_secret = ${SHARED_SECRET}
+    {{- end }}
+    {{- end }}
+
+    [pipeline:main]
+    pipeline = {{ if or .Values.agency.cors.free .Values.agency.cors.websites -}} cors {{ end -}} gzip agency
+
+    [server:main]
+    use = egg:gunicorn#main
+    bind = 0.0.0.0:6543
+    workers = 1
+    threads = 4
+    accesslog = -
+    loglevel = debug
+
+    [filter:gzip]
+    use = egg:Paste#gzip
+    compress_level = 6
+
+    {{- with .Values.agency.cors -}}
+    {{ if or .free .websites }}
+    
+    [filter:cors]
+    use = egg:wsgicors#middleware
+    {{ if .free }}
+    free_origin = copy
+    free_headers = *
+    free_expose_headers = *
+    free_methods = HEAD, OPTIONS, GET, POST, DELETE
+    free_credentials = true
+    free_maxage = 180
+    {{ end }}
+
+    {{- if .websites }}
+    website_origin = {{ range .websites -}} {{ . }} {{ end }}
+    website_methods = GET
+    website_maxage = 180
+    {{- end }}
+
+    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
+    {{- end }}{{ end }}
+
+    [loggers]
+    keys = root, agency, sqlalchemy, weasyprint
+
+    [handlers]
+    keys = console
+
+    [formatters]
+    keys = generic
+
+    [logger_root]
+    level = WARN
+    handlers = console
+
+    [logger_agency]
+    level = INFO
+    handlers =
+    qualname = agency
+
+    [logger_sqlalchemy]
+    level = WARN
+    handlers =
+    qualname = sqlalchemy.engine
+
+    [logger_weasyprint]
+    level = WARN
+    handlers =
+    qualname = weasyprint
+
+    [handler_console]
+    class = StreamHandler
+    args = (sys.stderr,)
+    level = ERROR
+    formatter = generic
+
+    [formatter_generic]
+    format = %(asctime)s %(levelname)-5.5s [%(name)s][%(threadName)s] %(message)s

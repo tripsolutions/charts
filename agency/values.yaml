@@ -1,0 +1,150 @@
+replicas:
+  web: 1
+  db: 2
+
+# to override chart app version (advertised and tag)
+# version: "2.1.20"
+
+image:
+  registry: eu.gcr.io/tripsol
+  pullPolicy: IfNotPresent
+  # # to override tag for all images
+  # tag: "2.1-dev9"
+  # # to override server image tag
+  # serverTag: ""
+  # # to override client image tag
+  # clientTag: ""
+  # # to override rescheck image tag
+  # rescheckTag: ""
+
+ingress:
+  enabled: false
+#   admin:
+#     hostnames: 
+#     - agency-ro-staging.dyn.tripsolutions.co.uk
+#   rescheck:
+#     hostnames: 
+#     - rescheck-ro-staging.dyn.tripsolutions.co.uk
+#   tls: true
+#   annotations: 
+#     cert-manager.io/cluster-issuer: letsencrypt-staging
+#     external-dns.alpha.kubernetes.io/hostname: agency-ro-staging.dyn.tripsolutions.co.uk
+
+agency:
+  env: staging
+  supportWidget: false
+  forTV: false
+  market: ro
+  rescheck: true
+  jwt: 
+    https_only_cookies: null
+    samesite: null
+  cron:
+    exchangerate:
+      enabled: true
+      source: bnr
+      currencies: [USD, EUR, GBP, AUD, CAD, JPY, CHF, CNY]
+      schedule: 25 0 * * *
+    etripImport:
+      enabled: false
+      schedule: 0 */3 * * *
+  mondial:
+    env: test # test or live
+    # values below would be the defaults if env is set to live
+    # auth_url: https://pro-allianz-partners.apis.allianz.com/jwtauth/accesstoken
+    # contracts_url: https://services.emagin.eu/ws/offer/pricing/v3.0/contracts
+    # issue_url: https://services.emagin.eu/ws/purchase/booking/v3.0
+  flexitech:
+    env: test
+    # url: uat-api.flexitechsolutions.co.uk
+  paysafe:
+    env: test
+    url: false # specify full URL to override env
+  pnrConverter: null
+    # public_key: null
+    # private_key: null
+  cors:
+    # enable CORS for the websites (list clients)
+    free: false
+    websites: []
+    # urls:
+    #  - https://www.etripagency.ro
+    #  - https://etripagency.ro 
+    #  - https://www.etrip-agency.ro 
+    #  - https://etrip-agency.ro
+    #  - https://www.etripagency.co.uk
+    #  - https://etripagency.co.uk
+    #  - https://www.etrip-agency.co.uk
+    #  - https://etrip-agency.co.uk 
+    #  - https://www.etripagency.com 
+    #  - https://etripagency.com 
+    #  - https://www.etrip-agency.com 
+    #  - https://etrip-agency.com
+  companies:
+    enabled: false
+    # for use from serverside
+    url: null
+    # for use from frontend
+    externalUrl: null 
+    shared_secret:
+      source: null
+      value: null
+
+mail:
+  smtp_host: mail.tripsolutions.co.uk # kubernetes solution coming soon?
+  default_sender: "ETrip Agency <noreply@etrip-agency.ro>"
+
+db:
+  teamId: agency
+  controller: false
+  version: 13
+  parameters: 
+    max_connections: "20"
+    shared_buffers: 1GB
+    temp_buffers: 32MB
+    work_mem: 32MB 
+    timezone: "Europe/Berlin"
+    maintenance_work_mem: 32MB
+    autovacuum_work_mem: 32MB
+    temp_file_limit: 2GB
+    effective_cache_size: 2GB
+    vacuum_cost_delay: 20ms
+    effective_io_concurrency: "1"
+    jit: "on"
+    log_autovacuum_min_duration: "5000"
+    log_checkpoints: "off"
+    log_connections: "off"
+    log_disconnections: "off"
+    log_min_duration_statement: "5000"
+    log_statement: "none"
+    log_rotation_age: "1d"
+    log_rotation_size: "10240"
+  volume:
+    size: 5Gi
+  # # cloning parameters
+  # clone: {}
+
+resources:
+  # don't override operator defaults
+  db: {}
+  web:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  api:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  cron:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi

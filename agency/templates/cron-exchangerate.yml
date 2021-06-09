@@ -1,0 +1,69 @@
+{{ if .Values.agency.cron.exchangerate.enabled -}}
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+  name: {{ .Release.Name }}-exchangerate
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.agency.cron.exchangerate.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: exchangerate
+        {{- include "labels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            cronjob-name: etrip-import
+            {{- include "labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: cron-exchangerate
+            image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsUser: 100
+              runAsGroup: 101
+            volumeMounts:
+            - mountPath: /config
+              name: config
+              subPath: app
+            env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: 
+                    name: agency.{{ include "clusterName" . }}.credentials
+                    key: password
+            - name: CONFIG_PATH
+              value: /config/agency.ini
+            command: [ python3 ]
+            args: 
+            - -c 
+            - |
+              import agency.tasks
+              {{- if eq .Values.agency.cron.exchangerate.source "bnr" }}
+              agency.tasks.update_bnr_exchange('/config/agency.ini#agency')
+              {{- else if eq .Values.agency.cron.exchangerate.source "floatrates" }}
+              agency.tasks.update_floatrates_exchange('/config/agency.ini#agency',
+                currencies=[
+                  {{- range .Values.agency.cron.exchangerate.currencies -}}
+                  "{{.}}",
+                  {{- end -}}
+                ])
+              {{- end }}
+            resources:
+              {{- toYaml .Values.resources.cron | nindent 14 }}
+          volumes:
+          - name: config
+            configMap:
+              name: {{ .Release.Name }}-config
+              items:
+              - key: agency.ini
+                path: app/agency.ini
+{{- end }}
