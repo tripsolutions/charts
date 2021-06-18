@@ -82,13 +82,10 @@ etrip:
   - 127.0.0.0/8
   - 10.0.0.0/8
   - 192.168.0.0/24
-  - 85.195.84.14 # anteros
-  - 185.19.218.74 # himeros
-  - 146.0.255.94 # helios
-  - 85.195.110.34 # hedylogos
-  - 85.195.110.14 # pothos
-  - 51.195.88.84 # worker1.ovh-cloud
-  - 141.95.2.150 # worker2.ovh-cloud
+  - 51.195.88.84 # worker1.ovh-cluster
+  - 141.95.2.150 # worker2.ovh-cluster
+  - 141.95.2.149 # worker3.ovh-cluster
+  - 141.95.3.197 # storage1.ovh-cluster
   other_trusted_ips: []
   slow_urls:
   - /reports/client_addresses.php 
