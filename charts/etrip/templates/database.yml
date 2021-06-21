@@ -25,4 +25,10 @@ spec:
   {{ with .Values.db.operator_install.clone -}}
   clone: {{ toYaml . | nindent 4 }}
   {{ end -}}
+  {{ with .Values.db.operator_install.standby -}}
+  {{ if .enabled -}}
+  standby:
+    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/11
+  {{ end -}}
+  {{ end -}}
 {{- end -}}

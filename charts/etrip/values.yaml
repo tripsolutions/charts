@@ -290,6 +290,10 @@ db:
       log_rotation_size: "10240"
     dbVolume:
       size: 5Gi
+    standby:
+      enabled: false
+      bucket: k8s-pg-wal
+      uid: null
     # don't override operator defaults
     resources: {}
   custom_install: 
