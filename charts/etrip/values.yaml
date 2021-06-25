@@ -309,6 +309,13 @@ db:
       fromSecretKey: secret-key
 
 resources:
+  migrate:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
   web:
     limits:
       cpu: 500m

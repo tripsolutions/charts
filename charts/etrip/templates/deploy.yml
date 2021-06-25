@@ -25,8 +25,54 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
-      {{- if .Values.frontends.enabled}}
       initContainers:
+      - name: migrations
+        {{- include "etripImage" . | nindent 8 }}
+        args: [ /var/www/localhost/migrate ]
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: etrip
+        - mountPath: /tmp/elogger
+          name: elogger
+        env:
+        - name: DB_PASSWORD
+          {{- if .Values.db.use_operator }}
+          valueFrom:
+            secretKeyRef: 
+              name: etrip. {{- include "clusterName" . -}} .credentials
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.db.custom_install.password.useSecret }}
+              name: {{ .Values.db.custom_install.password.fromSecret }}
+              key: {{ .Values.db.custom_install.password.fromSecretKey }}
+              {{- else }}
+              name: {{ .Release.Name }}-secrets
+              key: dbpassword
+              {{- end }}
+          {{- end }}
+        - name: ETRIP_CONFIG
+          value: /config
+        - name: ETRIP_DSN
+          {{ if .Values.db.use_operator -}}
+          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
+            {{- include "clusterName" . }}
+          {{- else -}}
+          value: sslmode=disable password=$(DB_PASSWORD) user= 
+            {{- .Values.db.custom_install.username }} dbname=
+            {{- .Values.db.custom_install.dbname}} host=
+            {{- .Values.db.custom_install.host }} port=
+            {{- .Values.db.custom_install.port }}
+          {{- end }}
+        - name: ETRIP_LOGDIR
+          value: /tmp/elogger
+        - name: ETRIP_VERSION
+          value: {{ .Values.version | quote }}
+        resources:
+          {{- toYaml .Values.resources.migrate | nindent 10 }}
+      {{ if .Values.frontends.enabled}}
       - name: copy-frontends
         {{- include "frontendsImage" . | nindent 8 }}
         volumeMounts:
