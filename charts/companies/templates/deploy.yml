@@ -121,7 +121,9 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
         - name: AGENCY_API
-          value: {{ .Values.companies.agencyURL }}
+          value: {{ .Values.companies.agency.api }}
+        - name: AGENCY_URL
+          value: {{ .Values.companies.agency.frontend }}
         - name: COMPANIES_API
           value: /api
         - name: CUMULUS_VERSION

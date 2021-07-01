@@ -31,7 +31,9 @@ companies:
     https_only_cookies: null
     samesite: null
     domains: []
-  agencyURL: https://sistem.etripagency.ro/api
+  agency:
+    api: https://sistem.etripagency.ro/api
+    frontend: https://sistem.etripagency.ro/pub/login
   cors:
     # enable CORS for the websites (list clients)
     free: false
