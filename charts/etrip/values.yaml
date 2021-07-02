@@ -2,7 +2,7 @@ replicas:
   web: 1
   db: 1
 
-version: 3.0.26
+version: 4.0.66
 
 ingress:
   enabled: true
@@ -105,25 +105,553 @@ etrip:
       fromSecret: secret-name
       fromSecretKey: password
   priority_api_users: []
-  config: |
-    <configuration>
-      <main>
-        <version>2.1.20</version>
-        <smtp_server>
-          <host>mailu.mail.svc</host>
-        </smtp_server>
-        <market>ro</market>
-        <client>
-          <id>default</id>
-          <name>Trip Solutions Ltd</name>
-          <documentation>
-            <letter/>
-          </documentation>
-        </client>
-      </main>
-      <priorities/>
-      <email_types/>
-    </configuration>
+  config: 
+    install_id: default
+    main:
+      environment: test
+      browser: gecko
+      smtp_server:
+        host: localhost
+      timezone: Europe/London
+      market: RO
+      currency: RON
+      html_pdf_renderer: wkhtmltopdf -B 0 -L 0 -T 0 -R 0
+    client:
+      id: default
+      name: Customer name
+      atol_no: ''
+      email:
+      email_from_name: TripSolutions
+      email_from_email: sales@tripsolutions.co.uk
+      companies: []
+      # - name: Company name
+      #   brand_name: Brand name
+      #   vat_no: VAT no
+      #   company_no: Company no
+      #   address:
+      #     address1: Address 1
+      #     address2:
+      #     address3:
+      #     city: City
+      #     county: County
+      #     country: Country
+      #   phone:
+      #   fax:
+      #   bank_account: Bank account
+      #   bank_name: Bank name
+      #   other:
+      defaults:
+        distribution_channel:
+        vat_rate: 17.5
+        show_client_titles: true
+        balance_due_days: 70
+        invoice:
+          currency:
+          type:
+        contract:
+          hot_deal_colour: "#FFDFDF"
+          notes:
+          uses_contract_notes: false
+        date_format: dd-mm-YYYY
+        hour_format: H:i
+      documentation:
+        invoice: []
+        # - brand: brand
+        #   xslt: client_files/company/invoice/invoice.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/invoice/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject:
+        #       direct: Booking invoice
+        #       agent_copy: Booking invoice
+        #       client_copy: Booking invoice
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        receipt: []
+        # - brand: brand
+        #   xslt: client_files/company/receipts/receipt.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/receipts/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject: Receipt
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        voucher: []
+        # - brand: brand
+        #   xslt: client_files/company/voucher/voucher.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/vouchers/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject: Voucher
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        ticket: []
+        # - brand: brand
+        #   xslt: client_files/company/tickets/ticket.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/tickets/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject: Ticket
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        remittance: []
+        # - brand: brand
+        #   xslt: client_files/company/remittance/remittance.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/remittance/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject: Remittance
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        itinerary: []
+        # - brand: brand
+        #   xslt: client_files/company/itinerary/itinerary.xsl
+        #   images: "/client_files/company/images/"
+        #   css: "/client_files/company/itinerary/css/"
+        #   email:
+        #     from: Company name
+        #     email: sales@tripsolutions.co.uk
+        #     subject: Itinerary
+        #     pdf_email_body: Sample body
+        #     images:
+        #     - file: webapp/client_files/company/images/logo.jpg
+        #       type: image/jpeg
+        #       alias: logo.jpg
+        #   php_generator:
+        letter: {}
+          # '1':
+          #   name: Letter template
+          #   xslt: client_files/company/letter/letter.xsl
+          #   images: client_files/company/letter/images/
+          #   css: "/client_files/company/letter/css/"
+          #   email:
+          #     body:
+          #     images:
+          #     - file: webapp/client_files/company/letter/images/header.png
+          #       type: image/png
+          #       alias: header.png
+    booking_types: {}
+    cancellation_policy: []
+    receipt_limits:
+      company: 10000
+      person: 5000
+    priorities: [
+      { key: 50, value: Lowest },
+      { key: 100, value: Low },
+      { key: 150, value: Normal },
+      { key: 200, value: High },
+      { key: 250, value: Highest }
+    ]
+    email_types:
+      MAI: Main
+      FIN: Financials
+      OPE: Operational
+    outboundXml:
+      enabled: false
+      distribution_channel: 1
+      brand: 1
+      etrip_user:
+      booking_type: sdd_0
+      booking_email: b2b@company.com
+      return_external_hotels: true
+      letters: {}
+        # code: template
+    files:
+      tmp_dir: "/tmp"
+      browse_location: "/tmp"
+      max_size:
+        image: '256'
+        attachment: '1024'
+    google:
+      mapKey:
+    modules:
+      flight:
+        use_allocation: false
+        searches: {}
+          # internal_charter:
+          #   label: Charters
+          #   is_charter: true
+          #   is_scheduled: false
+          #   availability_source:
+          # internal_scheduled:
+          #   code: internal_scheduled
+          #   label: Scheduled
+          #   is_charter: false
+          #   is_scheduled: true
+          #   availability_source:
+        item:
+          short_description: "##JOURNEY_DESCRIPTIONS##, on ##AIRLINE_CODE##, ##CABIN##"
+          description: |-
+            ##LEG_DESCRIPTIONS##
+            ##AIRLINE_DESCRIPTIONS##
+          leg: "##DATE## ##DEP_CITY##, ##DEP_AIRPORT## (##DEP_AIRPORT_CODE##) - ##ARR_CITY##,
+            ##ARR_AIRPORT## (##ARR_AIRPORT_CODE##), ##AIRLINE_CODE####FLIGHT_NO##, Dep
+            ##DEP_TIME##, Arr ##ARR_TIME##, ##CABIN##"
+          journey: "##DATE## ##DEP_AIRPORT_CODE##-##ARR_AIRPORT_CODE##"
+      accommodation:
+        use_allocation: false
+        item:
+          short_description: "##HOTEL_NAME##, ##START_DATE## to ##END_DATE##, ##NIGHTS##
+            nights, ##ROOM_CATEGORY_NAME##"
+          description: |-
+            ##HOTEL_NAME## - ##HOTEL_ADDRESS##
+            Check-in: ##START_DATE##, Check-out: ##END_DATE##, No of Nights: ##NIGHTS##
+            Room Category: ##ROOM_CATEGORY_NAME##
+            Rooms: ##ROOMS##
+            Meal Basis: ##MEAL_BASIS##
+            ##NOTES##
+        defaults:
+          check_in_time:
+            hour: 15
+            min: 0
+          check_out_time:
+            hour: 15
+            min: 0
+      carhire:
+        item:
+          short_description: "##CAR_NAME##, ##PICKUP_DATE## ##PICKUP_DEPOT_CODE##, ##DROPOFF_DATE##
+            ##DROPOFF_DEPOT_CODE##, ##PACKAGE##"
+          description: |-
+            Car Type: ##CAR_NAME##
+            Insurance: ##PACKAGE##
+            Pick Up: ##PICKUP_DATE## ##PICKUP_TIME## ##PICKUP_DEPOT_NAME##
+            Drop Off: ##DROPOFF_DATE## ##DROPOFF_TIME## ##DROPOFF_DEPOT_NAME##
+            ##NOTES##
+      tour:
+        item:
+          short_description: "##TOUR_NAME##, ##START_DATE##, ##START_LOCATION## (##PICKUP_DETAILS##)
+            - ##END_DATE##, ##END_LOCATION## (##DROPOFF_DETAILS##)"
+          description: |-
+            Tour: ##TOUR_NAME##
+            Pick Up: ##START_DATE_AND_TIME## ##START_LOCATION## (##PICKUP_DETAILS##)
+            Drop Off: ##END_DATE_AND_TIME## ##END_LOCATION## (##DROPOFF_DETAILS##)
+            ##NOTES##
+      transfer:
+        item:
+          short_description: "##TRANSFER_NAME##, ##DATE##, ##START_LOCATION## (##PICKUP_DETAILS##)
+            - ##END_LOCATION## (##DROPOFF_DETAILS##)"
+          description: |-
+            Transfer: ##TRANSFER_NAME##
+            Pick Up: ##START_DATE_AND_TIME## ##START_LOCATION## (##PICKUP_DETAILS##)
+            Drop Off: ##END_DATE_AND_TIME## ##END_LOCATION## (##DROPOFF_DETAILS##)
+            ##NOTES##
+      cruise:
+        item:
+          short_description: 'Cruise, ##NIGHTS## nights on ##SHIP_NAME##'
+          description: |-
+            Itinerary: ##ITINERARY_NAME##
+            ##ITINERARY##
+          itinerary_point: 'Stay in ##LOCATION## for ##STAY## days'
+      bus:
+        use_allocation: false
+        item:
+          short_description: "##BUS##, ##START_DATE##, ##START_LOCATION## - ##END_DATE##,
+            ##END_LOCATION##"
+          description: |-
+            Bus Transport: ##BUS##
+            ##DESCRIPTION##
+            ##NOTES##
+          oneway: |-
+            From: ##START_LOCATION## on ##START_DATE## at ##DEPARTURE_TIME##
+            To: ##END_LOCATION## arrives at ##ARRIVAL_TIME##
+          return: |-
+            From: ##START_LOCATION## on ##START_DATE## at ##DEPARTURE_TIME##
+            To: ##END_LOCATION## arrives at ##ARRIVAL_TIME##
+            Return: on ##END_DATE## at ##RETURN_TIME##
+      sd_packages:
+        use_allocation: false
+        folder: "/export"
+        aggregator: aggregate1
+        styles: "./webapp/client_files/client/exportStyles.xml"
+
+      rustar:
+        enabled: false
+        connections: {}
+          # UAE:
+          #   label: Dubai
+          #   url: https://restapi.rustaronline.com/v1.00/api
+          #   extras: https://restapi.rustaronline.com/v3.00/api/HotelExtrasNew
+          #   username: username
+          #   password: password
+          #   currency: USD
+          #   supplierId: 1
+          #   productType: 1
+          #   exchangeRate: 1
+          #   excludeMeals: [ RO, FB ]
+        emails: []
+      sansejour:
+        enabled: false
+        connections: {}
+          # CODE:
+          #   label: Label
+          #   url: http://company.sansejour.com/sws/
+          #   database: DBNAME
+          #   username: USER
+          #   password: PASSOWRD
+          #   supplierId: 1
+          #   productType: 1
+          #   contractMode: confirmed
+          #   ebMode: t
+          #   distribution: all
+          #   handling:
+          #     adult: 2
+          #     child: 0.5
+          #     infant: 0.5
+          #     tax: false
+          #     free_pax: false
+          #     free_nights: false
+          #     per_night: true
+          #     per_pax: true
+          #   exchange_rates: [1 2 3 4]
+          #   email:
+        emails: []
+        # - tudor@gtb.ro
+      gta:
+        enabled: false
+        connection:
+          # D
+          url: https://rs.gta-travel.com/wbsapi/RequestListenerServlet
+          retrieveurl: https://rs.gta-travel.com/wbsapi/RequestListenerServlet?TOKEN=
+          language: EN
+          country: GB
+          currency: USD
+          # client: 37174
+          # email: EMAIL@EMAIL.COM
+          # password: PASSWORD
+          exchange_rates: []
+          # [
+          #   { from: GBP, to: USD, id: 8 },
+          #   { from: GBP, to: CAD, id: 6 },
+          # ]
+          # supplier: 1
+          # product_type: 1
+          room_configurations: []
+          # - adults: 1
+          #   children: 0
+          #   infants: 0
+          #   room_types:
+          #     SB: { extrabeds: 0, cots: 0 }
+          #     TS: { extrabeds: 0, cots: 0 }
+          # - adults: 1
+          #   children: 0
+          #   infants: 1
+          #   room_types:
+          #     SB: { extrabeds: 0, cots: 1 }
+          #     TS: { extrabeds: 0, cots: 1 }
+        item:
+          short_description: "##HOTEL_NAME##, ##START_DATE##, ##END_DATE##"
+          description: |-
+            ##HOTEL_NAME##
+            Check-in: ##START_DATE##
+            Check-out: ##END_DATE##
+            ##NOTES##
+      hotelbeds:
+        enabled: false
+        connection:
+          server: http://212.170.239.18/appservices/http/FrontendService
+          # username: USERNAME
+          # password: PASSWORD
+          # default_hotels_directory: hotelbeds_setup/ING
+          exchange_rates: []
+          # [
+          #   { from: GBP, to: USD, id: 8 },
+          #   { from: GBP, to: CAD, id: 6 },
+          # ]
+          # supplier: 1
+          # product_type: 1
+        item:
+          short_description: "##HOTEL_NAME##, ##START_DATE## to ##END_DATE##, ##NIGHTS##
+            nights"
+          description: |-
+            ##HOTEL_NAME## - ##HOTEL_ADDRESS##
+            Check-in: ##START_DATE##, Check-out: ##END_DATE##, No of Nights: ##NIGHTS##
+            Rooms: ##ROOMS##
+            Meal Basis: ##MEAL_BASIS##
+            ##NOTES##
+      # specials: {}
+      # dynamic_packages: {}
+      xmlpro:
+        enabled: false
+        searches:
+          # xmlpro_published:
+          #   label: Worldspan PowerShopper fares
+          #   location: https://xmlpro.worldspan.com/
+          #   # user: USER
+          #   # password: PASSWORD
+          #   provider: Worldspan
+          #   session: W3XML
+          #   # product_type: 1
+          #   # supplier: 1
+          #   # pcc: MYPCC
+          #   rulecategories: RQGBNMDUTVKEFAIXS
+          #   # default_phone: PHONE-LINE
+          #   # queue_no: 1
+          #   # queue_cat: 0
+          #   # queue_pcc: QPCC
+          #   form_of_payment: CA
+          #   currency: EUR
+          #   country: RO
+      mondial:
+        enabled: false
+        connection:
+          authorizationUrl: https://pro-allianz-partners.apis.allianz.com/jwtauth/accesstoken
+          contractsUrl: https://services.emagin.eu/ws/offer/pricing/v3.0/contracts
+          purchaseUrl: https://services.emagin.eu/ws/purchase/booking/v3.0
+          # apiKey: APIKEY
+          # password: PASSWORD
+          # email: contact@company.com
+          # supplier: 1
+          # product_type: 2
+          # partnerCode: PCC
+          # agencyCode: AGC
+          exchange_rates: []
+          # - from: EUR
+          #   to: RON
+          #   id: 19
+      summertour:
+        enabled: false
+        connection:
+          url: http://online.summertour.com.tr:50200/SednaGetWay/SednaAgencyService.SednaGateway.svc?wsdl
+          # user: USER
+          # pass: PASSWORD
+          # supplier: 1
+          # product_type: 1
+          # reports_email: contact@company.com
+      etriphotels:
+        enabled: false
+        connections: {}
+          # CODE:
+          #   name: Link name
+          #   url: http://etrip.company.com/ws.php?op=etrip_webservice&wsdl
+          #   login: login
+          #   password: password
+          #   currency: EUR
+          #   exchange_rates:
+          #     GBP: 1
+          #   supplier: 1
+          #   product_type: 1
+        item:
+          short_description: "##HOTEL_NAME##, ##START_DATE## to ##END_DATE##, ##NIGHTS##
+            nights, ##ROOM_CATEGORY_NAME##"
+          description: |-
+            ##HOTEL_NAME## - ##HOTEL_ADDRESS##
+            Check-in: ##START_DATE##, Check-out: ##END_DATE##, No of Nights: ##NIGHTS##
+            Room Category: ##ROOM_CATEGORY_NAME##
+            Rooms: ##ROOMS##
+            Meal Basis: ##MEAL_BASIS##
+            ##NOTES##
+      cyberlogic:
+        enabled: false
+        connections: {}
+          # CODE:
+          #   name: Link name
+          #   url: http://213.136.82.154:81/services/webservice.asmx?WSDL
+          #   login: user
+          #   password: password
+          #   currency: EUR
+          #   exchange_rates:
+          #     GBP: 1
+          #   supplier: 1
+          #   product_type: 1
+          #   manual_meals: true
+          #   allocation: true
+          #   language: ro
+          #   mealMapping:
+          #     RR: Selfcatering
+          #     RO: Selfcatering
+          #     BB: Bed & Breakfast
+          #     MD: Breakfast
+          #     HB: Half Board
+          #     FB: Full Board
+          #     AI: All Inclusive
+          #     UI: Ultra All Inclusive
+          #     UAI: Ultra All Inclusive
+          #   handling:
+          #     adult: 3
+          #     child: 0
+          #     infant: 0
+          #     tax: true
+          #     free_pax: true
+          #     free_nights: true
+          #     per_night: false
+          #     per_pax: false
+        item:
+          short_description: "##HOTEL_NAME##, ##START_DATE## to ##END_DATE##, ##NIGHTS##
+            nights, ##ROOM_CATEGORY_NAME##"
+          description: |-
+            ##HOTEL_NAME## - ##HOTEL_ADDRESS##
+            Check-in: ##START_DATE##, Check-out: ##END_DATE##, No of Nights: ##NIGHTS##
+            Room Category: ##ROOM_CATEGORY_NAME##
+            Rooms: ##ROOMS##
+            Meal Basis: ##MEAL_BASIS##
+            ##NOTES##
+      omc:
+        enabled: false
+        connections: []
+        # - usage: client (empty or client/supplier/*)
+        #   wsdl: http://www.omc.ro/OmcLink/OmcLinkWebService?WSDL
+        #   reports_wsdl: http://www.omc.ro/JavaReportService/OmcWebReportService?wsdl
+        #   database: dbname
+        #   user: username
+        #   password: password
+        #   invoice_report: 
+        #   dbconn:
+        #   actiune_sup: false
+        #   use_return_date: false
+      bnr:
+        enabled: false
+        url: https://www.bnr.ro/nbrfxrates.xml
+      etripflights:
+        enabled: false
+        # code: flights
+        url: http://etrip.company.com/ws.php?op=etrip_webservice&wsdl
+        # login: user
+        # password: password
+        product_type: flight
+        currency: EUR
+      etrippackages:
+        connections: {}
+          # code:
+          #   name: Company name
+          #   url: http://etrip.company.com/ws.php?op=etrip_webservice&wsdl
+          #   login: username
+          #   password: password
+          #   currency: EUR
+          #   exchange_rates:
+          #     GBP: 1
+          #   supplier: 1
+          #   product_type: 1
+      PostCoder:
+        enabled: false
+        wsdlurl: http://www.postcoderwebsoap.co.uk/websoap/websoap.php?wsdl
+        # user: username
+        # password: password
+    translations:
 
 elogger:
   enabled: false

@@ -6,9 +6,9 @@ metadata:
   labels: 
     {{- include "labels" . | nindent 4 }}
 data:
-  config.xml: |
-    {{- .Values.etrip.config | nindent 4 }}
-  config.json: |
+  etrip.json: |
+    {{- toJson .Values.etrip.config | nindent 4 }}
+  b2b.json: |
     {{- toJson .Values.b2b.config | nindent 4 }}
   etrip-nginx.conf: |
     {{- if eq (len .Values.etrip.passwords) 0 }}
