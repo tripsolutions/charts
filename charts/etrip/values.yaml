@@ -152,7 +152,7 @@ etrip:
           hot_deal_colour: "#FFDFDF"
           notes:
           uses_contract_notes: false
-        date_format: dd-mm-YYYY
+        date_format: d-m-Y
         hour_format: H:i
       documentation:
         invoice: []
