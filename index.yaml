@@ -24,6 +24,16 @@ entries:
   companies:
   - apiVersion: v1
     appVersion: 0.0.1
+    created: "2021-07-08T14:50:31.401082977Z"
+    description: Cumulus Companies Helm chart
+    digest: 50c02214e267a5bffe4e4f20a964dae2c337d9e4d0800d4d1c40f788f082df1d
+    name: companies
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/companies-0.0.15/companies-0.0.15.tgz
+    version: 0.0.15
+  - apiVersion: v1
+    appVersion: 0.0.1
     created: "2021-07-01T15:54:26.564445879Z"
     description: Cumulus Companies Helm chart
     digest: a632fe1c0fc86c0ac94afac018eaa6c7e88861d43f9a18314a91043268c1b8c6
@@ -103,4 +113,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2021-07-08T14:31:06.567467673Z"
+generated: "2021-07-08T14:50:31.401108679Z"
