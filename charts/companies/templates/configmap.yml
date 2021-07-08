@@ -53,7 +53,7 @@ data:
     # file_template = %%(rev)s_%%(slug)s
 
     [pipeline:main]
-    pipeline = {{ if or .Values.companies.cors.free .Values.companies.cors.websites -}} cors {{ end -}} gzip companies
+    pipeline = cors gzip companies
 
     [server:main]
     use = egg:gunicorn#main
@@ -64,8 +64,7 @@ data:
     use = egg:Paste#gzip
     compress_level = 6
 
-    {{- with .Values.companies.cors -}}
-    {{ if or .free .websites }}
+    {{- with .Values.companies.cors }}
     
     [filter:cors]
     use = egg:wsgicors#middleware
@@ -76,7 +75,14 @@ data:
     free_methods = HEAD, OPTIONS, GET, POST, DELETE
     free_credentials = true
     free_maxage = 180
-    {{ end }}
+    {{- end }}
+
+    agency_origin = {{ $.Values.companies.agency.frontend }}
+    agency_headers = *
+    agency_expose_headers = *
+    agency_methods = HEAD, OPTIONS, GET, POST, DELETE
+    agency_credentials = true
+    agency_maxage = 180
 
     {{- if .websites }}
     website_origin = {{ range .websites -}} {{ . }} {{ end }}
@@ -84,8 +90,8 @@ data:
     website_maxage = 180
     {{- end }}
 
-    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
-    {{- end }}{{ end }}
+    policy = agency {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
+    {{- end }}
 
     [loggers]
     keys = root, cumulus_companies, sqlalchemy

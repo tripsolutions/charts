@@ -32,8 +32,9 @@ companies:
     samesite: null
     domains: []
   agency:
-    api: https://sistem.etripagency.ro/api
-    frontend: https://sistem.etripagency.ro/pub/login
+    # defaults to {{frontend}/api
+    api: null
+    frontend: https://sistem.etripagency.ro
   cors:
     # enable CORS for the websites (list clients)
     free: false
