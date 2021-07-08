@@ -120,7 +120,7 @@ spec:
         {{- end }}
         {{- if .Values.agency.companies.enabled }}
         - name: COMPANIES_API
-          value: {{ .Values.agency.companies.externalUrl }}
+          value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
         {{- end }}
         - name: NGINX_LISTEN
           value: "*:8080"
@@ -161,7 +161,7 @@ spec:
         {{- end }}
         {{- if .Values.agency.companies.enabled }}
         - name: COMPANIES_API
-          value: {{ .Values.agency.companies.externalUrl }}
+          value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
         {{- end }}
         - name: NGINX_LISTEN
           value: "*:8081"

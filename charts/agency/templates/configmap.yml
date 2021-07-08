@@ -108,13 +108,13 @@ data:
 
     {{- with .Values.agency.companies }}
     {{- if .enabled }}
-    cumulus.companies_url = {{ .url }}
+    cumulus.companies_url = {{ .internalApi | default .externalApi | default ( print .frontend "/api" ) }}
     cumulus.shared_secret = ${SHARED_SECRET}
     {{- end }}
     {{- end }}
 
     [pipeline:main]
-    pipeline = {{ if or .Values.agency.cors.free .Values.agency.cors.websites -}} cors {{ end -}} gzip agency
+    pipeline = {{ if or .Values.agency.companies.enabled  (or .Values.agency.cors.free .Values.agency.cors.websites) -}} cors {{ end -}} gzip agency
 
     [server:main]
     use = egg:gunicorn#main
@@ -129,7 +129,7 @@ data:
     compress_level = 6
 
     {{- with .Values.agency.cors -}}
-    {{ if or .free .websites }}
+    {{ if or (or .free .websites) $.Values.agency.companies.enabled }}
     
     [filter:cors]
     use = egg:wsgicors#middleware
@@ -148,7 +148,16 @@ data:
     website_maxage = 180
     {{- end }}
 
-    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
+    {{- if $.Values.agency.companies.enabled }}
+    companies_origin = {{ $.Values.agency.companies.frontend }}
+    companies_headers = *
+    companies_expose_headers = *
+    companies_methods = HEAD, OPTIONS, GET, POST, DELETE
+    companies_credentials = true
+    companies_maxage = 180
+    {{- end }}
+
+    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}{{ if $.Values.agency.companies.enabled }} companies  {{- end }}
     {{- end }}{{ end }}
 
     [loggers]

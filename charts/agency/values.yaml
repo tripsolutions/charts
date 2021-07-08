@@ -82,10 +82,14 @@ agency:
     #  - https://etrip-agency.com
   companies:
     enabled: false
-    # for use from serverside
-    url: null
-    # for use from frontend
-    externalUrl: null 
+    # if we can access via local service, bypass ingress
+    # defaults to externalApi
+    internalApi: null
+    # URL visible from outside world, use in browser
+    # defaults to {{ frontend }}/api
+    externalApi: null
+    # companies UI, required for CORS
+    frontend: null
     shared_secret:
       source: null
       value: null
