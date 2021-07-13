@@ -15,6 +15,7 @@ data:
     pyramid.debug_notfound = false
     pyramid.debug_routematch = false
     pyramid.default_locale_name = en
+    pyramid.includes = pyramid_beaker
 
     sqlalchemy.url = postgresql+psycopg2://companies:$PG_PASS@
         {{- include "clusterName" . -}} /companies
@@ -37,6 +38,17 @@ data:
     jwt.cookie_domains = {{ range .Values.companies.jwt.domains }} {{ . }} {{ end }}
     {{ end }}
     shared_secret = ${SHARED_SECRET}
+
+    cache.regions = default, short_term, binary
+    cache.default.type = memory
+    cache.default.expire = 60
+
+    cache.short_term.type = memory
+    cache.short_term.expire = 3600
+    cache.binary.type = file
+    cache.binary.expire = 3600
+    cache.binary.data_dir = /tmp/binary-cache/data
+    cache.binary.lock_dir = /tmp/binary-cache/lock
 
     [pshell]
     setup = cumulus_companies.pshell.setup
