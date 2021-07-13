@@ -77,10 +77,33 @@ data:
     compress_level = 6
 
     {{- with .Values.companies.cors }}
+    {{- $policies := list }}
     
     [filter:cors]
     use = egg:wsgicors#middleware
+    {{- with $.Values.companies.agency }}
+    {{- $frontends := .cors }}
+    {{- if not $frontends }}
+    {{- $frontends = list .frontend }}
+    {{- end }}
+    agency_origin = {{ $frontends | join " " }}
+    {{- end }}
+    agency_headers = *
+    agency_expose_headers = *
+    agency_methods = HEAD, OPTIONS, GET, POST, DELETE
+    agency_credentials = true
+    agency_maxage = 180
+    {{- $policies = append $policies "agency" }}
+
+    {{- if .websites }}
+    website_origin = {{ range .websites -}} {{ . }} {{ end }}
+    website_methods = GET
+    website_maxage = 180
+    {{- $policies = append $policies "website" }}
+    {{- end }}
+
     {{ if .free }}
+    {{- $policies = append $policies "free" }}
     free_origin = copy
     free_headers = *
     free_expose_headers = *
@@ -89,20 +112,7 @@ data:
     free_maxage = 180
     {{- end }}
 
-    agency_origin = {{ $.Values.companies.agency.frontend }}
-    agency_headers = *
-    agency_expose_headers = *
-    agency_methods = HEAD, OPTIONS, GET, POST, DELETE
-    agency_credentials = true
-    agency_maxage = 180
-
-    {{- if .websites }}
-    website_origin = {{ range .websites -}} {{ . }} {{ end }}
-    website_methods = GET
-    website_maxage = 180
-    {{- end }}
-
-    policy = agency {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}
+    policy = {{ $policies | join ", " }}
     {{- end }}
 
     [loggers]

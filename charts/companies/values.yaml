@@ -35,6 +35,9 @@ companies:
     # defaults to {{frontend}/api
     api: null
     frontend: https://sistem.etripagency.ro
+    # array of accepted CORS origins
+    # if empty, value from frontend is used instead
+    cors: []
   cors:
     # enable CORS for the websites (list clients)
     free: false
