@@ -130,6 +130,7 @@ data:
 
     {{- with .Values.agency.cors -}}
     {{ if or (or .free .websites) $.Values.agency.companies.enabled }}
+    {{- $policies := list }}
     
     [filter:cors]
     use = egg:wsgicors#middleware
@@ -140,12 +141,14 @@ data:
     free_methods = HEAD, OPTIONS, GET, POST, DELETE
     free_credentials = true
     free_maxage = 180
+    {{- $policies = append $policies "free" }}
     {{ end }}
 
     {{- if .websites }}
     website_origin = {{ range .websites -}} {{ . }} {{ end }}
     website_methods = GET
     website_maxage = 180
+    {{- $policies = prepend $policies "website" }}
     {{- end }}
 
     {{- if $.Values.agency.companies.enabled }}
@@ -155,9 +158,10 @@ data:
     companies_methods = HEAD, OPTIONS, GET, POST, DELETE
     companies_credentials = true
     companies_maxage = 180
+    {{- $policies = prepend $policies "companies" }}
     {{- end }}
 
-    policy = {{ if .websites -}} website {{ end }}{{ if .free -}} free {{- end }}{{ if $.Values.agency.companies.enabled }} companies  {{- end }}
+    policy = {{ $policies | join ", " }}
     {{- end }}{{ end }}
 
     [loggers]
