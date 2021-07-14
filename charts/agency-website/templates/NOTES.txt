@@ -1,0 +1,2 @@
+(c) Tripsolutions Ltd
+Agency website {{ .Chart.AppVersion }}

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicas.web }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
+    spec:
+      containers:
+      - name: website
+        {{- include "image" . | nindent 8 }}
+        env:
+        - name: RECAPTCHA_KEY
+          value: {{ .Values.config.reCaptcha.key }}
+        resources:
+          {{- toYaml .Values.resources.website | nindent 10 }}
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /var/www/localhost/sources.json
+          subPath: sources.json
+      - name: mailgate
+        image: eu.gcr.io/tripsol/mailgate:latest
+        env:
+        - name: RECAPTCHA_SECRET
+          value: {{ .Values.config.reCaptcha.secret }}
+        - name: MESSAGE_TEMPLATE
+          value: {{ .Values.config.mailgate.messageTemplate | quote }}
+        - name: SMTP_SERVER
+          value: {{ .Values.config.mailgate.server }}
+        - name: MAIL_FROM
+          value: {{ .Values.config.mailgate.mailFrom.address }}
+        - name: MAIL_FROM_NAME
+          value: {{ .Values.config.mailgate.mailFrom.name }}
+        - name: MAIL_TO
+          value: {{ .Values.config.mailgate.sendTo }}
+        - name: MAIL_SUBJECT
+          value: {{ .Values.config.mailgate.subject }}
+        resources:
+          {{- toYaml .Values.resources.mailgate | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-config
+

@@ -1,0 +1,63 @@
+replicas:
+  web: 1
+
+# version: 0.0.1 # -- defaults to chart appVersion
+
+ingress:
+  enabled: true
+  hostnames:
+  - www.etrip-agency.ro
+  - www.etripagency.ro
+  tls: false
+  annotations: {}
+#    cert-manager.io/cluster-issuer: letsencrypt-live
+#    external-dns.alpha.kubernetes.io/hostname: agency-website-ro.dyn.tripsolutions.co.uk
+#    nginx.ingress.kubernetes.io/proxy-body-size: 20m
+
+image:
+  pullPolicy: IfNotPresent
+  registry: eu.gcr.io/tripsol
+  name: agency/website-ro
+  # tag: master # -- defaults to version
+
+config:
+  reCaptcha:
+    key: ""
+    secret: ""
+  mailgate:
+    messageTemplate: |
+      <html><body>
+        Form data: <br/>
+        Nume: {{nume}} <br/>
+        Agentie: {{agentie}} <br/>
+        Email: {{email}} <br/>
+        Tel: {{tel}} <br/>
+        Mesaj: {{mesaj}} <br/>
+        <br/>
+      </body></html>
+    server: smtp-relay.gmail.com
+    mailFrom: 
+      name: Etrip Agency RO
+      address: sales@tripsolutions.co.uk
+    sendTo: sales@tripsolutions.ro
+    subject: Etrip Agency Ro Contact Form
+  customerSources:
+  - source: ro
+    url: /brands.json
+
+resources:
+  website:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  mailgate:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+
