@@ -258,8 +258,8 @@ etrip:
     booking_types: {}
     cancellation_policy: []
     receipt_limits:
-      company: 10000
-      person: 5000
+      person: 10000
+      company: 5000
     priorities: [
       { key: 50, value: Lowest },
       { key: 100, value: Low },
