@@ -31,6 +31,17 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/agency-0.2.12/agency-0.2.12.tgz
     version: 0.2.12
+  agency-website:
+  - apiVersion: v1
+    appVersion: 0.0.1
+    created: "2021-07-14T15:14:10.46427019Z"
+    description: Agency presentation website
+    digest: 952e9435c7847bd6578934ad79992bc469133a57554c998e00add7e24e6fbcf7
+    name: agency-website
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/agency-website-0.0.1/agency-website-0.0.1.tgz
+    version: 0.0.1
   companies:
   - apiVersion: v1
     appVersion: 0.0.1
@@ -163,4 +174,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2021-07-14T13:28:46.301738689Z"
+generated: "2021-07-14T15:14:10.46431629Z"
