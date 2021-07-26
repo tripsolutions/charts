@@ -161,7 +161,7 @@ data:
     {{- end }}
 
     self_origin = {{ range $.Values.ingress.admin.hostnames }} https://{{ . -}} {{ end -}}
-      {{ range $.Values.ingress.rescheck.hostnames }} https://{{ . -}} {{ end }}
+      {{ with $.Values.ingress.rescheck }} {{- range .hostnames }} https://{{ . -}} {{ end -}} {{ end }}
     self_headers = *
     self_expose_headers = *
     self_methods = HEAD, OPTIONS, GET, POST, DELETE
