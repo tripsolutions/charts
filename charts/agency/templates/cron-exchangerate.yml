@@ -18,7 +18,7 @@ spec:
       template:
         metadata:
           labels:
-            cronjob-name: etrip-import
+            cronjob-name: exchangerate
             {{- include "labels" . | nindent 12 }}
         spec:
           restartPolicy: Never

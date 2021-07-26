@@ -114,7 +114,7 @@ data:
     {{- end }}
 
     [pipeline:main]
-    pipeline = {{ if or .Values.agency.companies.enabled  (or .Values.agency.cors.free .Values.agency.cors.websites) -}} cors {{ end -}} gzip agency
+    pipeline = cors gzip agency
 
     [server:main]
     use = egg:gunicorn#main
@@ -129,8 +129,7 @@ data:
     compress_level = 6
 
     {{- with .Values.agency.cors -}}
-    {{ if or (or .free .websites) $.Values.agency.companies.enabled }}
-    {{- $policies := list }}
+    {{- $policies := list "self" }}
     
     [filter:cors]
     use = egg:wsgicors#middleware
@@ -161,8 +160,17 @@ data:
     {{- $policies = prepend $policies "companies" }}
     {{- end }}
 
+    self_origin = {{ range $.Values.ingress.admin.hostnames }} https://{{ . -}} {{ end -}}
+      {{ range $.Values.ingress.rescheck.hostnames }} https://{{ . -}} {{ end }}
+    self_headers = *
+    self_expose_headers = *
+    self_methods = HEAD, OPTIONS, GET, POST, DELETE
+    self_credentials = true
+    self_maxage = 180
+
+
     policy = {{ $policies | join ", " }}
-    {{- end }}{{ end }}
+    {{- end }}
 
     [loggers]
     keys = root, agency, sqlalchemy, weasyprint
