@@ -42,6 +42,7 @@ data:
     jwt.cookie_reissue_time = 1800
     jwt.cookie_accept_header = true
     jwt.cookie_prefer_header = true
+    jwt.cookie_path = /api
 
     sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "clusterName" . }}/agency
     agency.market = {{ .Values.agency.market | default "en" }}
