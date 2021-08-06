@@ -110,6 +110,7 @@ data:
     {{- with .Values.agency.companies }}
     {{- if .enabled }}
     cumulus.companies_url = {{ .internalApi | default .externalApi | default ( print .frontend "/api" ) }}
+    cumulus.external_companies_url = {{ .externalApi | default ( print .frontend "/api" ) }}
     cumulus.shared_secret = ${SHARED_SECRET}
     {{- end }}
     {{- end }}
