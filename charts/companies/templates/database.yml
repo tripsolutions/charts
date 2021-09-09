@@ -23,3 +23,7 @@ spec:
   {{- if .Values.resources.db }}
   resources: {{ toYaml .Values.resources.db | nindent 4 }}
   {{- end }}
+  {{ with .Values.db.clone -}}
+  clone: {{ toYaml . | nindent 4 }}
+  {{ end -}}
+
