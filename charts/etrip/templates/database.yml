@@ -85,7 +85,7 @@ metadata:
     {{- include "labels" $ | nindent 4 }}
 spec:
   schedule: {{ .Values.db.operator_install.refresh }}
-  concurrentPolicy: Forbid
+  concurrencyPolicy: Forbid
   jobTemplate:
     metadata:
       labels:
@@ -99,9 +99,10 @@ spec:
             {{- include "labels" . | nindent 12 }}
         spec:
           restartPolicy: Never
+          serviceAccountName: {{ .Release.Name }}-refresh-sa
           containers:
           - name: kubectl
-            command: /bin/sh
+            command: [ /bin/sh ]
             args:
             - -c
             - |
@@ -116,7 +117,6 @@ spec:
               done
               kubectl rollout restart deploy/${ETRIP_RELEASE}-web
             image: bitnami/kubectl
-            serviceAccountName: {{ .Release.Name }}-refresh-sa
             env:
             - name: ETRIP_RELEASE
               value: {{ .Release.Name }}
