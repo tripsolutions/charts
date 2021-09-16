@@ -818,6 +818,9 @@ db:
       log_rotation_size: "10240"
     dbVolume:
       size: 5Gi
+    # clone: 
+    #   cluster: master
+    # refresh: 10 2 * * *
     standby:
       enabled: false
       bucket: k8s-pg-wal

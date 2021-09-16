@@ -31,4 +31,97 @@ spec:
     s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/11
   {{ end -}}
   {{ end -}}
-{{- end -}}
+{{- if and .Values.db.operator_install.clone .Values.db.operator_install.refresh }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-refresh-sa
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "labels" $ | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-refresh-role
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "labels" $ | nindent 4 }}
+rules:
+- apiGroups: [ acid.zalan.do ]
+  resources: [ postgresqls ]
+  resourceNames: [ {{ include "clusterName" . }} ]
+  verbs: [ get, delete ]
+- apiGroups: [ acid.zalan.do ]
+  resources: [ postgresqls ]
+  verbs: [ create ]
+- apiGroups: [ apps ]
+  resources: [ deployments ]
+  resourceNames: [ {{ .Release.Name }}-web ]
+  verbs: [ get, patch ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-refresh-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-refresh-role
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-refresh-sa
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-refresh-db
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" $ | nindent 4 }}
+spec:
+  schedule: {{ .Values.db.operator_install.refresh }}
+  concurrentPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: refresh-db
+        {{- include "labels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            cronjob-name: refresh-db
+            {{- include "labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: kubectl
+            command: /bin/sh
+            args:
+            - -c
+            - |
+              kubectl get postgresql $ETRIP_CLUSTER -o yaml > /tmp/temp.yaml
+              kubectl delete -f /tmp/temp.yaml
+              sleep 5
+              kubectl create -f /tmp/temp.yaml
+              sleep 5
+              while [ "$(kubectl get -f /tmp/temp.yaml -o jsonpath='{.status.PostgresClusterStatus}')" != 'Running' ]; do
+                echo "Waiting for ready state"
+                sleep 5
+              done
+              kubectl rollout restart deploy/${ETRIP_RELEASE}-web
+            image: bitnami/kubectl
+            serviceAccountName: {{ .Release.Name }}-refresh-sa
+            env:
+            - name: ETRIP_RELEASE
+              value: {{ .Release.Name }}
+            - name: ETRIP_CLUSTER
+              value: {{ include "clusterName" . }}
+{{- end }}
+{{- end }}
+
