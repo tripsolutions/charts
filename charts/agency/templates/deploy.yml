@@ -110,8 +110,6 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
         env:
-        - name: TARGET
-          value: localhost:6543
         - name: AGENCY_VERSION
           value: {{ include "appVersion" . | quote }}
         - name: AGENCY_ENV
@@ -148,8 +146,6 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
         env:
-        - name: TARGET
-          value: localhost:6543
         - name: AGENCY_VERSION
           value: {{ include "appVersion" . | quote }}
         - name: AGENCY_ENV
