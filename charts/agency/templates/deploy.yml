@@ -93,6 +93,17 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources.api | nindent 10 }}
+        ports:
+        - containerPort: 6543
+          name: api
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /api/whoami
+            port: 6543
+          initialDelaySeconds: 5
+          periodSeconds: 15
+          timeoutSeconds: 5
       - name: admin
         image: {{ .Values.image.registry -}} /agency/client: {{- include "clientImageTag" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -128,13 +139,6 @@ spec:
         - containerPort: 8080
           name: admin
           protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /api/whoami
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 15
-          timeoutSeconds: 5
         resources:
           {{- toYaml .Values.resources.web | nindent 10 }}
       {{- if .Values.agency.rescheck }}

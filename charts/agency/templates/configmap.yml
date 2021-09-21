@@ -121,10 +121,11 @@ data:
     [server:main]
     use = egg:gunicorn#main
     bind = 0.0.0.0:6543
-    workers = 1
-    threads = 4
+    workers = {{ .Values.agency.gunicorn.workers | default 1 }}
+    threads = {{ .Values.agency.gunicorn.threads | default 4 }}
     accesslog = -
-    loglevel = debug
+    loglevel = warning
+    forwarded_allow_ips = 0.0.0.0/0
 
     [filter:gzip]
     use = egg:Paste#gzip

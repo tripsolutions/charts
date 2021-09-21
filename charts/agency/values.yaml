@@ -93,6 +93,9 @@ agency:
     shared_secret:
       source: null
       value: null
+  gunicorn:
+    workers: 1
+    threads: 4
 
 mail:
   smtp_host: mail.tripsolutions.co.uk # kubernetes solution coming soon?
