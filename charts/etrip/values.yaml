@@ -76,6 +76,8 @@ etrip:
       high: 10
       phpValues:
         <<: *phpValues
+  nginx: 
+    workers: 2
   passwords: {}
   #  user: $apr1$foobar
   trusted_ips:

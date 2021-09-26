@@ -165,14 +165,6 @@ spec:
                 path: etrip/config.json
               - key: b2b.json
                 path: etrip/b2b.json
-              - key: etrip-nginx.conf
-                path: etrip/nginx.conf
-              {{- if ne (len $.Values.etrip.passwords) 0 }}
-              - key: htpasswd
-                path: etrip/htpasswd
-              {{- end }}
-              - key: etrip-fpm.ini
-                path: etrip/fpm.ini
           - name: elogger
             emptyDir: {}
 ---

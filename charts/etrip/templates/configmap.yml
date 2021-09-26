@@ -8,46 +8,162 @@ metadata:
 data:
   etrip.json: |
     {{- toJson .Values.etrip.config | nindent 4 }}
+  {{- if .Values.b2b.enabled }}
   b2b.json: |
     {{- toJson .Values.b2b.config | nindent 4 }}
+  {{- end }}
+  supervisor.conf: |
+    [supervisord]
+    user=root
+
+    [program:fpm]
+    user = root
+    command = php-fpm8 -y /config/fpm.ini
+    autorestart = true
+    startretries = 5
+    stopwaitsecs = 15
+
+    [program:nginx]
+    command = nginx -c /config/nginx.conf
+    autorestart = true
+    startretires = 5
+    stopwaitsecs = 15
   etrip-nginx.conf: |
-    {{- if eq (len .Values.etrip.passwords) 0 }}
-    geo $trusted { default 1; }
-    {{- else }}
-    geo $trusted { 
-      default 0;
+    user nginx;
+    worker_processes {{ .Values.etrip.nginx.workers | default 1 }};
+    error_log /dev/stderr warn;
+    daemon off;
+    events {}
+    http {
+      include /etc/nginx/mime.types;
+      server_tokens off;
+      sendfile on;
+      tcp_nopush on;
+      access_log /proc/1/fd/1 combined;
+      set_real_ip_from 0.0.0.0/0;
+      real_ip_header X-Forwarded-For;
 
-      # this list should be left defined in master values
-      {{- range $value := .Values.etrip.trusted_ips }}
-      {{ $value }} 1;
+      {{- if ne (len .Values.etrip.passwords) 0 }}
+      geo $trusted { 
+        default 0;
+        {{- range $value := .Values.etrip.trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+      }
       {{- end }}
 
-      # this list should be used to add install-specific trusted IPs
-      {{- range $value := .Values.etrip.other_trusted_ips }}
-      {{ $value }} 1;
-      {{- end }}
-    }
-    {{- end }}
-    map $request_uri $slow { 
-      default 0; 
+      map $request_uri $slow { 
+        default 0; 
+        {{- range $value := .Values.etrip.slow_urls }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_slow_urls }}
+        {{ $value }} 2;
+        {{- end }}
+      }
 
-      # this list should be left defined in master values
-      {{- range $value := .Values.etrip.slow_urls }}
-      {{ $value }} 1;
+      map $remote_user $webservice { 
+        default webservice;
+        {{- range $value := .Values.etrip.priority_api_users }}
+        {{ $value }} webservice_prio;
+        {{- end }}
+      }
+
+      upstream webapp {
+          server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream webservice {
+          server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream webservice_prio {
+          server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream background {
+          server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      {{- if .Values.b2b.enabled }}
+      upstream b2b {
+          server localhost:{{ .Values.etrip.fpm.b2b.port }} max_fails=64 fail_timeout=1s;
+      }
       {{- end }}
 
-      # this list should be used to add install-specific URLs
-      {{- range $value := .Values.etrip.other_slow_urls }}
-      {{ $value }} 2;
-      {{- end }}
-    }
+      server {
+          listen *:80;
+          server_name localhost;
+          root /var/www/localhost/webapp;
+          location @404 { internal; }
+          index index.php;
+          
+          {{- if ne (len .Values.etrip.passwords) 0 }}
+          set $auth_realm "etrip backend";
+          if ($trusted != 0) {
+              set $auth_realm off;
+          }
+          auth_basic $auth_realm;
+          auth_basic_user_file /config/htpasswd;
+          {{- end }}
 
-    map $remote_user $webservice { 
-      default webservice;
+          fastcgi_split_path_info ^(.+\.php)(.*)$;
+          fastcgi_index index.php;
+          fastcgi_intercept_errors off;
+          error_page 404 @404;
+          include /etc/nginx/fastcgi.conf;
 
-      {{- range $value := .Values.etrip.priority_api_users }}
-      {{ $value }} webservice_prio;
-      {{- end }}
+          location @slow {
+              fastcgi_read_timeout 300s;
+              fastcgi_connect_timeout 300s;
+              fastcgi_send_timeout 300s; 
+              fastcgi_pass background;
+          }
+
+          {{- if .Values.b2b.enabled }}
+          location /server {
+              root /var/www/localhost/b2b;
+              fastcgi_split_path_info ^/server(.+\.php)(.*)$;
+              location ~ \.php {
+                fastcgi_pass b2b;
+              }
+          }
+          {{- end }}
+
+          location / {
+            location ~ \.php {
+                error_page 418 = @slow;
+                fastcgi_pass webapp;
+
+                {{- if ne (len .Values.etrip.passwords) 0 }}
+                location ~ ^/(wscsv|file)\.php {
+                    auth_basic off;
+                    fastcgi_pass webapp;
+                }
+
+                location ~ ^/(ws|json)\.php {
+                    auth_basic off;
+                    fastcgi_pass $webservice;
+                }
+                {{- end }}
+
+                if ($slow = 1) {
+                    return 418;
+                }
+            }
+          }
+
+          location ~ ^/(status|ping)$ {
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              fastcgi_index index.php;
+              include /etc/nginx/fastcgi_params;
+              fastcgi_pass webapp;
+          }
+      }
+
     }
   {{- if ne (len .Values.etrip.passwords) 0 }}
   htpasswd: |
@@ -74,6 +190,10 @@ data:
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
+    {{- if $.Values.etrip.use_redis }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
     php_value[{{$pkey}}] = {{$pval}}
@@ -97,24 +217,9 @@ data:
 
     http {
       include /etc/nginx/mime.types;
-      default_type application/octet-stream;
-
-      log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-        '$status $body_bytes_sent "$http_referer" '
-        '"$http_user_agent" "$http_x_forwarded_for"';
-      access_log  /dev/stdout main;
+      access_log  /dev/stdout combined;
       sendfile        on;
-      #tcp_nopush     on;
-      keepalive_timeout  65;
-      #gzip  on;
-
-      upstream web_frontend {
-        {{- if .Values.etrip.fpm.frontends }}
-        server localhost:{{ .Values.etrip.fpm.frontends.port }};
-        {{- else }}
-        server localhost:{{ .Values.etrip.fpm.main.port }};
-        {{- end }}
-      }
+      tcp_nopush     on;
 
       set_real_ip_from 0.0.0.0/0;
       real_ip_header X-Forwarded-For;
@@ -137,8 +242,12 @@ data:
           fastcgi_intercept_errors off;
           error_page 404 @404;
           include /etc/nginx/fastcgi.conf;
-
-          fastcgi_pass web_frontend;
+          
+          {{- if .Values.etrip.fpm.frontends }}
+          fastcgi_pass localhost:{{ .Values.etrip.fpm.frontends.port }};
+          {{- else }}
+          fastcgi_pass localhost:{{ .Values.etrip.fpm.main.port }};
+          {{- end }}
         }
       }
       {{- end }}

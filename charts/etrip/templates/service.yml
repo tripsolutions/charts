@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-admin
+  name: {{ .Release.Name }}-service
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "labels" . | nindent 4 }}
     app.kubernetes.io/component: web
 spec:
   ports:
-  - name: admin
+  - name: etrip
     port: 80
-    targetPort: admin
+    targetPort: etrip
   {{- if .Values.b2b.enabled }}
   - name: b2b
     port: 81

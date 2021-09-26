@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled -}}
 {{- $name := .Release.Name -}}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $name }}-web
@@ -23,25 +23,38 @@ spec:
       - path: /api
         pathType: Prefix
         backend:
-          serviceName: {{ $name }}-admin
-          servicePort: api
+          service:
+            name: {{ $name }}-service
+            port: 
+              name: api
       {{- end }}
       - path: /
         pathType: Prefix
         backend:
-          serviceName: {{ $name }}-admin
-          servicePort: admin
+          service:
+            name: {{ $name }}-service
+            port:
+              name: etrip
   {{- end }}{{ end }}
   {{- with .Values.ingress.b2b }}
   {{- range .hostnames }}
   - host: {{ . | quote }}
     http:
       paths:
+      - path: /server
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $name }}-service
+            port:
+              name: etrip
       - path: /
         pathType: Prefix
         backend:
-          serviceName: {{ $name }}-admin
-          servicePort: b2b
+          service:
+            name: {{ $name }}-service
+            port: 
+              name: b2b
   {{- end }}{{ end }}
   {{- if .Values.frontends.enabled }}
   {{- range $key, $val :=  .Values.ingress.frontends }}
@@ -52,7 +65,7 @@ spec:
       - path: /
         pathType: Prefix
         backend:
-          serviceName: {{ $name }}-admin
+          serviceName: {{ $name }}-service
           servicePort: frontend-{{ $key }}
   {{- end}}{{ end }}{{ end }}
   {{- if .Values.ingress.tls }}

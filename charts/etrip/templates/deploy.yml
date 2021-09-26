@@ -28,7 +28,7 @@ spec:
       initContainers:
       - name: migrations
         {{- include "etripImage" . | nindent 8 }}
-        args: [ /var/www/localhost/migrate ]
+        command: [ /var/www/localhost/migrate ]
         volumeMounts:
         - mountPath: /config
           name: config
@@ -84,15 +84,15 @@ spec:
           - cp -r /frontends/* /dest/
       {{- end}}
       containers:
-      - name: fpm
+      - name: etrip
+        command: [ supervisord, -n, -c, /config/supervisor.conf ]
         {{- include "etripImage" . | nindent 8 }}
-        args: [ php-fpm5, -y, /config/fpm.ini ]
-        # livenessProbe:
-        #   httpGet:
-        #     path: /ping
-        #     port: 80
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 30
         volumeMounts:
         - mountPath: /config
           name: config
@@ -134,27 +134,17 @@ spec:
             {{- .Values.db.custom_install.host }} port=
             {{- .Values.db.custom_install.port }}
           {{- end }}
+        {{- if and .Values.db.use_operator ( gt (int .Values.replicas.db) 1 ) }}
         - name: ETRIP_DSN_RO
-          {{ if .Values.db.use_operator -}}
           value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
             {{- include "clusterName" . }}-repl connect_timeout=1
-          {{- else -}}
-          value: sslmode=disable password=$(DB_PASSWORD) user= 
-            {{- .Values.db.custom_install.username }} dbname=
-            {{- .Values.db.custom_install.dbname}} host=
-            {{- .Values.db.custom_install.host }} port=
-            {{- .Values.db.custom_install.port }}
-          {{- end }}
+        {{- end }}
         {{- if .Values.etrip.use_redis }}
-        - name: PHP_SAVE_HANDLER
-          value: redis
         - name: REDIS_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-secrets
               key: session
-        - name: PHP_SAVE_PATH
-          value: tcp://{{ .Release.Name }}-redis:6379?auth=$(REDIS_SECRET)
         {{- end }}
         {{- if $.Values.etrip.searchlogs.enabled }}
         - name: SEARCHLOGS_DBPASSWORD
@@ -184,40 +174,12 @@ spec:
         - name: ETRIP_SMTP_HOST
           value: localhost
         {{ end -}}
-        resources:
-          {{- toYaml .Values.resources.fpm | nindent 10 }}
-      - name: admin
-        {{- include "etripImage" . | nindent 8 }}
-        args: [ nginx ]
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: etrip
-        env:
-        - name: FPM_TARGET_WEBAPP
-          value: localhost:{{ .Values.etrip.fpm.main.port }}
-        - name: FPM_TARGET_WS
-          value: localhost:{{ .Values.etrip.fpm.ws.port }}
-        - name: FPM_TARGET_WS_PRIO
-          value: localhost:{{ .Values.etrip.fpm.ws_prio.port }}
-        - name: FPM_TARGET_SLOW
-          value: localhost:{{ .Values.etrip.fpm.slow.port }}
-        - name: NGINX_PORT
-          value: "80"
-        - name: ETRIP_CONFIG
-          value: /config
-        - name: ETRIP_PASSWD
-          value: /config
-        # this is wrong in etrip's docker image, will fix but for now patching
-        # from the chart instead
-        - name: PHP_ERROR_REPORTING
-          value: "22527"
         ports:
         - containerPort: 80
-          name: admin
+          name: etrip
           protocol: TCP
         resources:
-          {{- toYaml .Values.resources.web | nindent 10 }}
+          {{- toYaml .Values.resources.fpm | nindent 10 }}
       {{- if .Values.b2b.enabled }}
       - name: b2b
         {{- with .Values.b2b.image }}
@@ -395,6 +357,8 @@ spec:
             path: etrip/b2b.json
           - key: etrip-nginx.conf
             path: etrip/nginx.conf
+          - key: supervisor.conf
+            path: etrip/supervisor.conf
           {{- if ne (len .Values.etrip.passwords) 0 }}
           - key: htpasswd
             path: etrip/htpasswd
