@@ -243,10 +243,10 @@ data:
           error_page 404 @404;
           include /etc/nginx/fastcgi.conf;
           
-          {{- if .Values.etrip.fpm.frontends }}
-          fastcgi_pass localhost:{{ .Values.etrip.fpm.frontends.port }};
+          {{- if $.Values.etrip.fpm.frontends }}
+          fastcgi_pass localhost:{{ $.Values.etrip.fpm.frontends.port }};
           {{- else }}
-          fastcgi_pass localhost:{{ .Values.etrip.fpm.main.port }};
+          fastcgi_pass localhost:{{ $.Values.etrip.fpm.main.port }};
           {{- end }}
         }
       }
