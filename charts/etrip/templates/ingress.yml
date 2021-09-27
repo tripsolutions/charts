@@ -65,8 +65,10 @@ spec:
       - path: /
         pathType: Prefix
         backend:
-          serviceName: {{ $name }}-service
-          servicePort: frontend-{{ $key }}
+          service:
+            name: {{ $name }}-service
+            port: 
+              name: frontend-{{ $key }}
   {{- end}}{{ end }}{{ end }}
   {{- if .Values.ingress.tls }}
   tls:
