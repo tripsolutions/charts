@@ -163,8 +163,10 @@ spec:
               items:
               - key: etrip.json
                 path: etrip/config.json
+              {{- if .Values.b2b.enabled }}
               - key: b2b.json
                 path: etrip/b2b.json
+              {{- end }}
           - name: elogger
             emptyDir: {}
 ---
