@@ -127,6 +127,11 @@ db:
     size: 5Gi
   # # cloning parameters
   # clone: {}
+  # standby replica parameters
+  standby:
+    enabled: false
+    bucket: k8s-pg-wal
+    uid: null
 
 resources:
   # don't override operator defaults
