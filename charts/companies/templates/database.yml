@@ -23,7 +23,13 @@ spec:
   {{- if .Values.resources.db }}
   resources: {{ toYaml .Values.resources.db | nindent 4 }}
   {{- end }}
-  {{ with .Values.db.clone -}}
+  {{- with .Values.db.clone }}
   clone: {{ toYaml . | nindent 4 }}
-  {{ end -}}
+  {{- end }}
+  {{- with .Values.db.standby }}
+  {{- if .enabled }}
+  standby:
+    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/{{ $.Values.db.version }}
+  {{- end }}
+  {{- end }}
 

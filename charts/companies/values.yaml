@@ -72,6 +72,10 @@ db:
     log_rotation_size: "10240"
   volume:
     size: 5Gi
+  replica:
+    enabled: false
+    bucket: k8s-pg-wal
+    uid: null
 
 resources:
   # don't override operator defaults
