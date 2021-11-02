@@ -71,6 +71,7 @@ data:
     use = egg:gunicorn#main
     bind = 0.0.0.0:6543
     workers = 4
+    forwarded_allow_ips = *
 
     [filter:gzip]
     use = egg:Paste#gzip
