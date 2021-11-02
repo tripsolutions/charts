@@ -133,7 +133,7 @@ data:
     threads = {{ .Values.agency.gunicorn.threads | default 4 }}
     accesslog = -
     loglevel = warning
-    forwarded_allow_ips = 0.0.0.0/0
+    forwarded_allow_ips = *
 
     [filter:gzip]
     use = egg:Paste#gzip
