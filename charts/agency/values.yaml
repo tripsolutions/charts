@@ -60,6 +60,9 @@ agency:
   paysafe:
     env: test
     url: false # specify full URL to override env
+  gate_e:
+    env: test
+    url: false # specify full URL to override env
   pnrConverter: null
     # public_key: null
     # private_key: null

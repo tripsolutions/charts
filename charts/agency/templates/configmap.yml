@@ -107,6 +107,14 @@ data:
             {{- end }}
     {{ end }}
 
+    {{ with .Values.agency.gate_e -}}
+    gate_e.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
+            https://www.gate-e.com/api/process.php
+            {{- else -}} 
+            http://test.gate-e.com/api/process.php
+            {{- end }}
+    {{ end }}
+
     {{- with .Values.agency.companies }}
     {{- if .enabled }}
     cumulus.companies_url = {{ .internalApi | default .externalApi | default ( print .frontend "/api" ) }}
