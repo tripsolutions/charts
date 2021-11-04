@@ -1,14 +1,14 @@
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
-  name: {{ include "clusterName" . }}
+  name: {{ include "agency.clusterName" . }}
   namespace: {{ .Release.Namespace }}
   {{- if .Values.db.controller }}
   annotations:
     acid.zalan.do/controller: {{ .Values.db.controller }}
   {{- end }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   teamId: {{ .Values.db.teamId }}
   volume: {{ toYaml .Values.db.volume | nindent 4 }}
@@ -29,6 +29,6 @@ spec:
   {{- with .Values.db.standby }}
   {{- if .enabled }}
   standby:
-    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/{{ $.Values.db.version }}
+    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "agency.clusterName" $) }}/{{ .uid }}/wal/{{ $.Values.db.version }}
   {{- end }}
   {{- end }}

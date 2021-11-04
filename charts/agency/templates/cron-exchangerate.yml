@@ -2,10 +2,10 @@
 kind: CronJob
 apiVersion: batch/v1beta1
 metadata:
-  name: {{ .Release.Name }}-exchangerate
+  name: {{ include "agency.releaseName" . }}-exchangerate
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.agency.cron.exchangerate.schedule | quote }}
   concurrencyPolicy: Forbid
@@ -13,18 +13,18 @@ spec:
     metadata:
       labels:
         cronjob-name: exchangerate
-        {{- include "labels" . | nindent 8 }}
+        {{- include "agency.labels" . | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
             cronjob-name: exchangerate
-            {{- include "labels" . | nindent 12 }}
+            {{- include "agency.labels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:
           - name: cron-exchangerate
-            image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+            image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             securityContext:
               allowPrivilegeEscalation: false
@@ -38,7 +38,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: 
-                    name: agency.{{ include "clusterName" . }}.credentials
+                    name: agency.{{ include "agency.clusterName" . }}.credentials
                     key: password
             - name: CONFIG_PATH
               value: /config/agency.ini
@@ -62,7 +62,7 @@ spec:
           volumes:
           - name: config
             configMap:
-              name: {{ .Release.Name }}-config
+              name: {{ include "agency.releaseName" . }}-config
               items:
               - key: agency.ini
                 path: app/agency.ini

@@ -1,12 +1,12 @@
 {{- if .Values.ingress.enabled -}}
-{{- $name := .Release.Name -}}
+{{- $name := include "agency.releaseName" . -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $name }}-web
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
     app.kubernetes.io/component: web
   {{- with .Values.ingress.annotations }}
   annotations:
@@ -14,7 +14,7 @@ metadata:
   {{- end }}
 spec:
   rules:
-  {{- with .Values.ingress.admin }}
+  {{- with default .Values.global.agency.admin .Values.ingress.admin }}
   {{- range .hostnames }}
   - host: {{ . | quote }}
     http:
@@ -35,7 +35,7 @@ spec:
               name: admin
 
   {{- end }}{{ end }}
-  {{- with .Values.ingress.rescheck }}
+  {{- with default .Values.global.agency.rescheck .Values.ingress.rescheck }}
   {{- range .hostnames }}
   - host: {{ . | quote }}
     http:
@@ -48,14 +48,14 @@ spec:
             port: 
               name: rescheck
   {{- end }}{{ end }}
-  {{- if .Values.ingress.tls }}
+  {{- if default .Values.global.agency.tls .Values.ingress.tls }}
   tls:
   - hosts:
-    {{ with .Values.ingress.admin }}
+    {{ with default .Values.global.agency.admin .Values.ingress.admin }}
     {{ range .hostnames }}
     - {{ . | quote }}
     {{- end }}{{ end }}
-    {{- with .Values.ingress.rescheck }}
+    {{- with default .Values.global.agency.rescheck .Values.ingress.rescheck }}
     {{- range .hostnames }}
     - {{ . | quote }}
     {{- end }}{{ end }}
