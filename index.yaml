@@ -1,6 +1,21 @@
 apiVersion: v1
 entries:
   agency:
+  - apiVersion: v2
+    appVersion: 2.7.6
+    created: "2021-11-04T20:31:51.540130462Z"
+    dependencies:
+    - condition: companies.enabled
+      name: companies
+      repository: ""
+      version: 0.1.0
+    description: eTrip Agency Helm chart
+    digest: a02b57ac7202f8073482b1ee476ff1620f299940db3be52df0c4ffe3e62b1b00
+    name: agency
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/agency-0.4.0/agency-0.4.0.tgz
+    version: 0.4.0
   - apiVersion: v1
     appVersion: 2.7.3
     created: "2021-11-02T16:25:06.505247201Z"
@@ -384,4 +399,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2021-11-02T16:27:04.66316683Z"
+generated: "2021-11-04T20:31:51.540310863Z"
