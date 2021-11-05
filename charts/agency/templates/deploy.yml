@@ -85,12 +85,10 @@ spec:
             secretKeyRef:
               {{- if $.Values.companies.enabled }}
               name: {{ include "companies.releaseName" $ }}-secret
-              {{- else }}
-              {{- if .shared_secret.source }}
+              {{- else if .shared_secret.source }}
               name: {{ .shared_secret.source }}
               {{- else }}
               name: {{ include "agency.releaseName" $ }}-secret
-              {{- end }}
               {{- end }}
               key: shared_secret
         {{- end }}
