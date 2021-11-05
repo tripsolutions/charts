@@ -5,7 +5,9 @@ App version, image tag and all that jazz
 {{ define "companies.releaseName" -}}
 {{- if or (hasPrefix "companies-" .Release.Name) (eq "companies" .Release.Name) -}}
 {{ .Release.Name }}
-{{- else -}}
+{{- else if or (hasPrefix "agency-" .Release.Name) (eq "agency" .Release.Name) -}}
+companies{{ trimPrefix "agency" .Release.Name }}
+{{- else }}
 companies-{{ .Release.Name }}
 {{- end -}}
 {{-  end }}
