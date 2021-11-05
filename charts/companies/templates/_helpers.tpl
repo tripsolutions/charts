@@ -17,7 +17,7 @@ companies-{{ .Release.Name }}
 {{- end }}
 
 {{ define "companies.imageTag" -}}
-{{ .Values.image.tag | default (include "companies.appVersion" .) }}
+{{ .Values.image.tag | default (print "v" (include "companies.appVersion" .)) }}
 {{- end }}
 
 {{ define "companies.serverImageTag" -}}
