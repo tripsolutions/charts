@@ -46,6 +46,7 @@ data:
 
     sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "clusterName" . }}/agency
     agency.market = {{ .Values.agency.market | default "en" }}
+    agency.env = {{ .Values.agency.env }}
 
     mail.host = {{ .Values.mail.smtp_host | default "localhost" }}
     mail.default_sender = {{ .Values.mail.default_sender | default "ETrip Agency <noreply@etrip-agency.ro>" }}
