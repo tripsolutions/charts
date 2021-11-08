@@ -59,6 +59,8 @@ spec:
           name: config
           subPath: app
         env:
+        - name: AGENCY_ENV
+          value: {{ .Values.agency.env }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
