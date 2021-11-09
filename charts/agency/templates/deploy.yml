@@ -59,8 +59,6 @@ spec:
           name: config
           subPath: app
         env:
-        - name: AGENCY_ENV
-          value: {{ .Values.agency.env }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
@@ -114,6 +112,8 @@ spec:
         env:
         - name: AGENCY_VERSION
           value: {{ include "appVersion" . | quote }}
+        - name: AGENCY_ENV
+          value: {{ .Values.agency.env }}
         - name: AGENCY_SUPPORTWIDGET
           value: {{ .Values.agency.supportWidget | quote }}
         - name: AGENCY_ISFORTV
