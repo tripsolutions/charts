@@ -125,6 +125,7 @@ data:
 
           {{- if .Values.b2b.enabled }}
           location /server {
+              auth_basic off;
               root /var/www/localhost/b2b;
               fastcgi_split_path_info ^/server(.+\.php)(.*)$;
               location ~ \.php {
