@@ -8,8 +8,25 @@ metadata:
 data:
   etrip.json: |
     {{- toJson .Values.etrip.config | nindent 4 }}
+  {{- $config := .Values.b2b.config }}
+  {{- if .Values.ingress.enabled }}
+  {{- $config = $config | merge (dict 
+    "etripUrl" (
+      print (ternary "https" "http" (default false .Values.ingress.tls) ) 
+        "://" (index .Values.ingress.admin.hostnames 0)
+      )
+  ) }}
+  {{- if .Values.ingress.b2b }}
+  {{- $config = $config | merge (dict 
+    "url" (
+      print (ternary "https" "http" (default false .Values.ingress.tls) ) 
+        "://" (index .Values.ingress.b2b.hostnames 0)
+      )
+  ) }}
+  {{- end }}
+  {{- end }}
   b2b.json: |
-    {{- toJson .Values.b2b.config | nindent 4 }}
+    {{- toJson $config | nindent 4 }}
   etrip-nginx.conf: |
     {{- if eq (len .Values.etrip.passwords) 0 }}
     geo $trusted { default 1; }
