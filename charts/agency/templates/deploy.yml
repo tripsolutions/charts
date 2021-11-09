@@ -114,8 +114,6 @@ spec:
         env:
         - name: AGENCY_VERSION
           value: {{ include "appVersion" . | quote }}
-        - name: AGENCY_ENV
-          value: {{ .Values.agency.env }}
         - name: AGENCY_SUPPORTWIDGET
           value: {{ .Values.agency.supportWidget | quote }}
         - name: AGENCY_ISFORTV
