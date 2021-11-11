@@ -23,6 +23,8 @@ spec:
         env:
         - name: RECAPTCHA_KEY
           value: {{ .Values.config.reCaptcha.key }}
+        - name: TARGET_FPM
+          value: localhost:9000
         resources:
           {{- toYaml .Values.resources.website | nindent 10 }}
         ports:
