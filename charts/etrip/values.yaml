@@ -680,6 +680,7 @@ smtpgate:
   user: false
   password: password
   always_bcc: false
+  imageVersion: v3.3.1-alpine
 
 b2b:
   enabled: false
