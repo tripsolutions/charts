@@ -684,6 +684,7 @@ smtpgate:
 
 b2b:
   enabled: false
+  merge: false
   config:
     cors: false
     etripPath: /var/www/localhost
