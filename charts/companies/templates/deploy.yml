@@ -127,7 +127,7 @@ spec:
         - name: COMPANIES_API
           value: /api
         - name: CUMULUS_VERSION
-          value: {{ include "appVersion" . }}
+          value: {{ include "appVersion" . | quote }}
         ports:
         - containerPort: 80
           name: frontend
