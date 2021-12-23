@@ -23,7 +23,12 @@ spec:
   resources: {{ toYaml . | nindent 4 }}
   {{ end -}}
   {{ with .Values.db.operator_install.clone -}}
+  {{ if not .namespace -}}
   clone: {{ toYaml . | nindent 4 }}
+  {{ else -}}
+  clone:
+    cluster: {{ $.Release.Name }}-source
+  {{ end -}}
   {{ end -}}
   {{ with .Values.db.operator_install.standby -}}
   {{ if .enabled -}}
@@ -123,5 +128,38 @@ spec:
             - name: ETRIP_CLUSTER
               value: {{ include "clusterName" . }}
 {{- end }}
+{{- if .Values.db.operator_install.clone }}
+{{- if .Values.db.operator_install.clone.namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  {{- $clusterName := include "clusterName" . }}
+  name: standby.{{ .Release.Name }}-source.credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+  annotations:
+    reflector.v1.k8s.emberstack.com/reflects: "{{- .Values.db.operator_install.clone.namespace -}} /standby.
+      {{- .Values.db.operator_install.clone.cluster | default $clusterName -}} .credentials"
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-source
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{.Values.db.operator_install.clone.cluster | default $clusterName -}} .
+    {{- .Values.db.operator_install.clone.namespace -}} .svc.cluster.local
+  ports:
+  - name: postgres
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
 {{- end }}
-
+{{- end }}
+{{- end }}

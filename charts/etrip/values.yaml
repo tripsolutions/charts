@@ -838,7 +838,9 @@ db:
       size: 5Gi
     # clone: 
     #   cluster: master
+    #   namespace: ns
     # refresh: 10 2 * * *
+    # allowCloneFrom: ns
     standby:
       enabled: false
       bucket: k8s-pg-wal
