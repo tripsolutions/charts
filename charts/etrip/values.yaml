@@ -761,6 +761,14 @@ b2b:
       bounceEmail: ""
       receipients: []
       subject: Transfer booking {booking_id} destination {destination}
+    bus:
+      bookingType: bus
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Bus booking {booking_id} destination {destination}
 
   image:
     pullPolicy: IfNotPresent
