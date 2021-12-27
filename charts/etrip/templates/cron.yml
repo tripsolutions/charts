@@ -55,6 +55,7 @@ spec:
                   {{- $.Values.db.custom_install.host }} port=
                   {{- $.Values.db.custom_install.port }}
               {{- end }}
+            {{- if and .Values.db.use_operator ( gt (int .Values.replicas.db) 1 ) }}
             - name: ETRIP_DSN_RO
               {{ if $.Values.db.use_operator -}}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
@@ -66,6 +67,7 @@ spec:
                 {{- $.Values.db.custom_install.host }} port=
                 {{- $.Values.db.custom_install.port }}
               {{- end }}
+            {{- end }}
             {{- if $.Values.etrip.searchlogs.enabled }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
