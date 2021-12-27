@@ -7,7 +7,7 @@ App version, image tag and all that jazz
 {{ .Release.Name }}
 {{- else if or (hasPrefix "agency-" .Release.Name) (eq "agency" .Release.Name) -}}
 companies{{ trimPrefix "agency" .Release.Name }}
-{{- else }}
+{{- else -}}
 companies-{{ .Release.Name }}
 {{- end -}}
 {{-  end }}

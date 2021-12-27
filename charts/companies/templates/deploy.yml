@@ -123,17 +123,17 @@ spec:
         - name: AGENCY_API
           {{- if or .Values.companies.agency.api .Values.companies.agency.frontend }}
           value: {{ .Values.companies.agency.api | default ( print .Values.companies.agency.frontend "/api" ) }}
-          {{- else }}
+          {{- else }}{{ if .Values.global }}{{ if .Values.global.agency }}
           value: {{ ternary "https" "http" .Values.global.agency.tls  -}} 
             :// {{- index .Values.global.agency.admin.hostnames 0 -}} /api
-          {{- end }}
+          {{- end }}{{ end }}{{ end }}
         - name: AGENCY_URL
           {{- if .Values.companies.agency.frontend }}
           value: {{ print .Values.companies.agency.frontend "/pub/login" }}
-          {{- else }}
+          {{- else }}{{ if .Values.global }}{{ if .Values.global.agency }}
           value: {{ ternary "https" "http" .Values.global.agency.tls  -}} 
             :// {{- index .Values.global.agency.admin.hostnames 0 -}} /pub/login
-          {{- end }}
+          {{- end }}{{ end }}{{ end }}
         - name: COMPANIES_API
           value: /api
         - name: CUMULUS_VERSION

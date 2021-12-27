@@ -120,9 +120,13 @@ spec:
           value: {{ .Values.agency.supportWidget | quote }}
         - name: AGENCY_ISFORTV
           value: {{ .Values.agency.forTV | quote }}
-        {{- with default .Values.global.agency.rescheck .Values.ingress.rescheck }}
+        {{- $rescheck := .Values.ingress.rescheck }}
+        {{- if .Values.global }}{{ if .Values.global.agency }}
+        {{- $rescheck = default .Values.global.agency.rescheck $rescheck }}
+        {{- end }}{{end}}
+        {{- if $rescheck }}
         - name: AGENCY_RESCHECK_URL
-          value: {{ index .hostnames 0 }}
+          value: {{ index $rescheck.hostnames 0 }}
         {{- end }}
         {{- if .Values.ingress.enabled }}
         - name: AGENCY_API

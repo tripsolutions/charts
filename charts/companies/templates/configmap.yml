@@ -88,14 +88,15 @@ data:
     {{- end }}
     {{- if $frontends }}
     agency_origin = {{ $frontends | join " " }}
-    {{- else }}
+    {{- else }}{{ if $.Values.global }}{{ if $.Values.global.agency }}
       {{- $frontends := list }}
-      {{- $proto := ternary "https" "http" $.Values.global.agency.tls }}
+      {{- $tls := $.Values.global.agency.tls }}
+      {{- $proto := ternary "https" "http" $tls }}
       {{- range $.Values.global.agency.admin.hostnames }}
         {{- $frontends = append $frontends (print $proto "://" . ) }}
       {{- end }}
     agency_origin = {{ $frontends | join " " }}
-    {{- end }}
+    {{- end }}{{ end }}{{ end }}
     agency_headers = *
     agency_expose_headers = *
     agency_methods = HEAD, OPTIONS, GET, POST, DELETE
