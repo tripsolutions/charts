@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-config
+  name: {{ include "agency.releaseName" . }}-config
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 data:
   agency.ini: |
     [app:agency]
@@ -44,7 +44,7 @@ data:
     jwt.cookie_prefer_header = true
     jwt.cookie_path = /api
 
-    sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "clusterName" . }}/agency
+    sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "agency.clusterName" . }}/agency
     agency.market = {{ .Values.agency.market | default "en" }}
     agency.env = {{ .Values.agency.env }}
 
@@ -116,12 +116,18 @@ data:
             {{- end }}
     {{ end }}
 
-    {{- with .Values.agency.companies }}
-    {{- if .enabled }}
+    {{- if .Values.agency.companies.enabled}} 
+    {{- if .Values.companies.enabled }}
+    cumulus.companies_url = http://{{ include "companies.releaseName" . }}-api/api
+    cumulus.external_companies_url = {{ ternary "https" "http" (default .Values.global.companies.tls .Values.companies.ingress.tls) -}} 
+        :// {{- index (default .Values.global.companies.hostnames .Values.companies.ingress.hostnames) 0 -}} /api
+    {{- else }}
+    {{- with .Values.companies }}
     cumulus.companies_url = {{ .internalApi | default .externalApi | default ( print .frontend "/api" ) }}
     cumulus.external_companies_url = {{ .externalApi | default ( print .frontend "/api" ) }}
-    cumulus.shared_secret = ${SHARED_SECRET}
     {{- end }}
+    {{- end }}
+    cumulus.shared_secret = ${SHARED_SECRET}
     {{- end }}
 
     [pipeline:main]
@@ -140,11 +146,12 @@ data:
     use = egg:Paste#gzip
     compress_level = 6
 
-    {{- with .Values.agency.cors -}}
-    {{- $policies := list "self" }}
-    
+   
     [filter:cors]
     use = egg:wsgicors#middleware
+    {{- $policies := list }}
+
+    {{- with .Values.agency.cors -}}
     {{ if .free }}
     free_origin = copy
     free_headers = *
@@ -161,9 +168,15 @@ data:
     website_maxage = 180
     {{- $policies = prepend $policies "website" }}
     {{- end }}
+    {{- end }}
 
-    {{- if $.Values.agency.companies.enabled }}
-    companies_origin = {{ $.Values.agency.companies.frontend }}
+    {{- if .Values.agency.companies.enabled }}
+    {{- if .Values.companies.enabled }}
+    companies_origin = {{ ternary "https" "http" (default .Values.global.companies.tls .Values.companies.ingress.tls)  -}} 
+      :// {{- index (default .Values.global.companies.hostnames .Values.companies.ingress.hostnames) 0 }}
+    {{- else }}
+    companies_origin = {{ .Values.agency.companies.frontend }}
+    {{- end }}
     companies_headers = *
     companies_expose_headers = *
     companies_methods = HEAD, OPTIONS, GET, POST, DELETE
@@ -172,17 +185,18 @@ data:
     {{- $policies = prepend $policies "companies" }}
     {{- end }}
 
-    self_origin = {{ range $.Values.ingress.admin.hostnames }} https://{{ . -}} {{ end -}}
-      {{ with $.Values.ingress.rescheck }} {{- range .hostnames }} https://{{ . -}} {{ end -}} {{ end }}
+    {{- if .Values.ingress.enabled }} 
+    self_origin = {{ range index (default .Values.global.agency.admin .Values.ingress.admin) "hostnames" }} https://{{ . -}} {{ end -}}
+      {{ with default .Values.global.agency.rescheck .Values.ingress.rescheck }} {{- range .hostnames }} https://{{ . -}} {{ end -}} {{ end }}
     self_headers = *
     self_expose_headers = *
     self_methods = HEAD, OPTIONS, GET, POST, DELETE
     self_credentials = true
     self_maxage = 180
-
+    {{- $policies = append $policies "self" }}
+    {{- end }}
 
     policy = {{ $policies | join ", " }}
-    {{- end }}
 
     [loggers]
     keys = root, agency, sqlalchemy, weasyprint

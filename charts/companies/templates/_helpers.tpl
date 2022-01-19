@@ -2,28 +2,38 @@
 App version, image tag and all that jazz
 */}}
 
-{{ define "appVersion" -}}
+{{ define "companies.releaseName" -}}
+{{- if or (hasPrefix "companies-" .Release.Name) (eq "companies" .Release.Name) -}}
+{{ .Release.Name }}
+{{- else if or (hasPrefix "agency-" .Release.Name) (eq "agency" .Release.Name) -}}
+companies{{ trimPrefix "agency" .Release.Name }}
+{{- else -}}
+companies-{{ .Release.Name }}
+{{- end -}}
+{{-  end }}
+
+{{ define "companies.appVersion" -}}
 {{ .Values.version | default .Chart.AppVersion }}
 {{- end }}
 
-{{ define "imageTag" -}}
-{{ .Values.image.tag | default .Values.version | default .Chart.AppVersion }}
+{{ define "companies.imageTag" -}}
+{{ .Values.image.tag | default (print "v" (include "companies.appVersion" .)) }}
 {{- end }}
 
-{{ define "serverImageTag" -}}
-{{ .Values.image.serverTag | default .Values.image.tag | default .Values.version | default .Chart.AppVersion }}
+{{ define "companies.serverImageTag" -}}
+{{ .Values.image.serverTag | default (include "companies.imageTag" .) }}
 {{- end }}
 
-{{ define "clientImageTag" -}}
-{{ .Values.image.clientTag | default .Values.image.tag | default .Values.version | default .Chart.AppVersion }}
+{{ define "companies.clientImageTag" -}}
+{{ .Values.image.clientTag | default (include "companies.imageTag" .) }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "labels" -}}
+{{- define "companies.labels" -}}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-{{ include "selectorLabels" . }}
+{{ include "companies.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Values.version | default .Chart.AppVersion | quote }}
 {{- end }}
@@ -34,7 +44,7 @@ env: {{ .Values.companies.env }}
 {{/*
 Selector labels
 */}}
-{{- define "selectorLabels" -}}
+{{- define "companies.selectorLabels" -}}
 app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
@@ -42,10 +52,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 Cluster name
 */}}
-{{- define "clusterName" -}}
-{{- if hasPrefix (print .Values.db.teamId "-") .Release.Name  -}}
-{{- .Release.Name -}} -cluster
+{{- define "companies.clusterName" -}}
+{{- if hasPrefix (print .Values.db.teamId "-") (include "companies.releaseName" .) -}}
+{{- include "companies.releaseName" . -}} -cluster
 {{- else -}}
-{{- .Values.db.teamId -}} - {{- .Release.Name -}} -cluster
+{{- .Values.db.teamId -}} - {{- include "companies.releaseName" . -}} -cluster
 {{- end -}}
 {{- end -}}

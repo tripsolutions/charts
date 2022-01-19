@@ -84,7 +84,7 @@ agency:
     #  - https://www.etrip-agency.com 
     #  - https://etrip-agency.com
   companies:
-    enabled: false
+    enabled: true
     # if we can access via local service, bypass ingress
     # defaults to externalApi
     internalApi: null
@@ -163,3 +163,7 @@ resources:
     requests:
       cpu: 100m
       memory: 50Mi
+
+# subchart config
+companies:
+  enabled: false

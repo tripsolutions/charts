@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-web
+  name: {{ include "agency.releaseName" . }}-web
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
     app.kubernetes.io/component: web
 spec:
   replicas: {{ .Values.replicas.web }}
   selector:
     matchLabels:
-      {{- include "selectorLabels" . | nindent 6 }}
+      {{- include "agency.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: web
   strategy:
     rollingUpdate:
@@ -20,14 +20,14 @@ spec:
   template:
     metadata:
       labels:
-        {{- include "selectorLabels" . | nindent 8 }}
+        {{- include "agency.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
       initContainers:
       - name: initdb
-        image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+        image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
@@ -41,14 +41,14 @@ spec:
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
-                name: agency.{{ include "clusterName" . }}.credentials
+                name: agency.{{ include "agency.clusterName" . }}.credentials
                 key: password
         - name: CONFIG_PATH
           value: /config/agency.ini
         command: [ initialize_agency_db, $(CONFIG_PATH)#agency ]
       containers:
       - name: api
-        image: {{ .Values.image.registry -}} /agency/server: {{- include "serverImageTag" . }}
+        image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
@@ -62,7 +62,7 @@ spec:
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
-              name: agency.{{ include "clusterName" . }}.credentials
+              name: agency.{{ include "agency.clusterName" . }}.credentials
               key: password
         - name: CONFIG_PATH
           value: /config/agency.ini
@@ -71,22 +71,24 @@ spec:
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-secret
+              name: {{ include "agency.releaseName" . }}-secret
               key: session
         - name: PW_RECOVERY_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-secret
+              name: {{ include "agency.releaseName" . }}-secret
               key: passrecovery
         {{- with .Values.agency.companies }}
-        {{- if .enabled }}
+        {{- if or .enabled $.Values.companies.enabled }}
         - name: SHARED_SECRET
           valueFrom:
             secretKeyRef:
-              {{- if .shared_secret.source }}
+              {{- if $.Values.companies.enabled }}
+              name: {{ include "companies.releaseName" $ }}-secret
+              {{- else if .shared_secret.source }}
               name: {{ .shared_secret.source }}
               {{- else }}
-              name: {{ $.Release.Name }}-secret
+              name: {{ include "agency.releaseName" $ }}-secret
               {{- end }}
               key: shared_secret
         {{- end }}
@@ -105,31 +107,41 @@ spec:
           periodSeconds: 15
           timeoutSeconds: 5
       - name: admin
-        image: {{ .Values.image.registry -}} /agency/client: {{- include "clientImageTag" . }}
+        image: {{ .Values.image.registry -}} /agency/client: {{- include "agency.clientImageTag" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
         env:
         - name: AGENCY_VERSION
-          value: {{ include "appVersion" . | quote }}
+          value: {{ include "agency.appVersion" . | quote }}
         - name: AGENCY_ENV
           value: {{ .Values.agency.env }}
         - name: AGENCY_SUPPORTWIDGET
           value: {{ .Values.agency.supportWidget | quote }}
         - name: AGENCY_ISFORTV
           value: {{ .Values.agency.forTV | quote }}
-        {{- with .Values.ingress.rescheck }}
+        {{- $rescheck := .Values.ingress.rescheck }}
+        {{- if .Values.global }}{{ if .Values.global.agency }}
+        {{- $rescheck = default .Values.global.agency.rescheck $rescheck }}
+        {{- end }}{{end}}
+        {{- if $rescheck }}
         - name: AGENCY_RESCHECK_URL
-          value: {{ index .hostnames 0 }}
+          value: {{ index $rescheck.hostnames 0 }}
         {{- end }}
         {{- if .Values.ingress.enabled }}
         - name: AGENCY_API
-          value: {{ if .Values.ingress.tls }}https://{{ else }}http://{{ end }}
-              {{- index .Values.ingress.admin.hostnames 0 }}/api
+          value: {{ ternary "https" "http" (default .Values.global.agency.tls .Values.ingress.tls) -}}
+            :// {{- index (default .Values.global.agency.admin .Values.ingress.admin).hostnames 0 -}}
+            /api
         {{- end }}
         {{- if .Values.agency.companies.enabled }}
         - name: COMPANIES_API
+          {{- if .Values.companies.enabled }}
+          value: {{ ternary "https" "http" (default .Values.global.companies.tls .Values.companies.ingress.tls ) -}}
+            :// {{- index (default .Values.global.companies.hostnames .Values.companies.ingress.hostnames) 0 -}} /api
+          {{- else }}
           value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
+          {{- end }}
         {{- end }}
         - name: NGINX_LISTEN
           value: "*:8080"
@@ -141,13 +153,13 @@ spec:
           {{- toYaml .Values.resources.web | nindent 10 }}
       {{- if .Values.agency.rescheck }}
       - name: rescheck
-        image: {{ .Values.image.registry -}} /agency/rescheck: {{- include "rescheckImageTag" . }}
+        image: {{ .Values.image.registry -}} /agency/rescheck: {{- include "agency.rescheckImageTag" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
         env:
         - name: AGENCY_VERSION
-          value: {{ include "appVersion" . | quote }}
+          value: {{ include "agency.appVersion" . | quote }}
         - name: AGENCY_ENV
           value: {{ .Values.agency.env }}
         - name: AGENCY_SUPPORTWIDGET
@@ -156,12 +168,18 @@ spec:
           value: {{ .Values.agency.forTV | quote }}
         {{- if .Values.ingress.enabled }}
         - name: AGENCY_API
-          value: {{ if .Values.ingress.tls }}https://{{ else }}http://{{ end }}
-              {{- index .Values.ingress.admin.hostnames 0 }}/api
+          value: {{ ternary "https" "http" (default .Values.global.agency.tls .Values.ingress.tls) -}}
+            :// {{- index (default .Values.global.agency.admin .Values.ingress.admin).hostnames 0 -}}
+            /api
         {{- end }}
         {{- if .Values.agency.companies.enabled }}
         - name: COMPANIES_API
+          {{- if .Values.companies.enabled }}
+          value: {{ ternary "https" "http" (default .Values.global.companies.tls .Values.companies.ingress.tls ) -}}
+            :// {{- index (default .Values.global.companies.hostnames .Values.companies.ingress.hostnames) 0 -}} /api
+          {{- else }}
           value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
+          {{- end }}
         {{- end }}
         - name: NGINX_LISTEN
           value: "*:8081"
@@ -175,7 +193,7 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: {{ .Release.Name }}-config
+          name: {{ include "agency.releaseName" . }}-config
           items:
           - key: agency.ini
             path: app/agency.ini

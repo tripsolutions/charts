@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-config
+  name: {{ include "companies.releaseName" . }}-config
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "companies.labels" . | nindent 4 }}
 data:
   config.ini: |
     [app:companies]
@@ -18,7 +18,7 @@ data:
     pyramid.includes = pyramid_beaker
 
     sqlalchemy.url = postgresql+psycopg2://companies:$PG_PASS@
-        {{- include "clusterName" . -}} /companies
+        {{- include "companies.clusterName" . -}} /companies
     retry.attempts = 3
 
     jwt.private_key = ${SESSION_SECRET}
@@ -82,13 +82,21 @@ data:
     
     [filter:cors]
     use = egg:wsgicors#middleware
-    {{- with $.Values.companies.agency }}
-    {{- $frontends := .cors }}
-    {{- if not $frontends }}
-    {{- $frontends = list .frontend }}
+    {{- $frontends := $.Values.companies.agency.cors }}
+    {{- if and $.Values.companies.agency.frontend (not $frontends) }}
+      {{- $frontends = list $.Values.companies.agency.frontend }}
     {{- end }}
+    {{- if $frontends }}
     agency_origin = {{ $frontends | join " " }}
-    {{- end }}
+    {{- else }}{{ if $.Values.global }}{{ if $.Values.global.agency }}
+      {{- $frontends := list }}
+      {{- $tls := $.Values.global.agency.tls }}
+      {{- $proto := ternary "https" "http" $tls }}
+      {{- range $.Values.global.agency.admin.hostnames }}
+        {{- $frontends = append $frontends (print $proto "://" . ) }}
+      {{- end }}
+    agency_origin = {{ $frontends | join " " }}
+    {{- end }}{{ end }}{{ end }}
     agency_headers = *
     agency_expose_headers = *
     agency_methods = HEAD, OPTIONS, GET, POST, DELETE

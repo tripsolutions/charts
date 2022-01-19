@@ -4,13 +4,13 @@ replicas:
   db: 1
 
 # to override chart app version (advertised and tag)
-version: "0.0.1"
+# version: "0.0.1"
 
 image:
   registry: eu.gcr.io/tripsol
   pullPolicy: IfNotPresent
   # # to override tag for all images
-  tag: "master-r8"
+  # tag: "master-r8"
   # # or for particular images
   # serverTag: "master-r1"
   # clientTag: "master-r1"
@@ -31,13 +31,13 @@ companies:
     https_only_cookies: null
     samesite: null
     domains: []
-  agency:
+  agency: {}
     # defaults to {{frontend}/api
-    api: null
-    frontend: https://sistem.etripagency.ro
+    #api: null
+    #frontend: https://sistem.etripagency.ro
     # array of accepted CORS origins
     # if empty, value from frontend is used instead
-    cors: []
+    #cors: []
   cors:
     # enable CORS for the websites (list clients)
     free: false

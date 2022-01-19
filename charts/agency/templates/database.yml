@@ -1,14 +1,19 @@
+{{- $clusterName := include "agency.clusterName" . }}
+{{- $clone := .Values.db.clone }}
+{{- if .Values.global }}{{ if .Values.global.clone }}
+{{- $clone = .Values.global.clone }}
+{{- end }}{{ end }}
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
-  name: {{ include "clusterName" . }}
+  name: {{ $clusterName }}
   namespace: {{ .Release.Namespace }}
   {{- if .Values.db.controller }}
   annotations:
     acid.zalan.do/controller: {{ .Values.db.controller }}
   {{- end }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   teamId: {{ .Values.db.teamId }}
   volume: {{ toYaml .Values.db.volume | nindent 4 }}
@@ -23,12 +28,46 @@ spec:
   {{- if .Values.resources.db }}
   resources: {{ toYaml .Values.resources.db | nindent 4 }}
   {{- end }}
-  {{- with .Values.db.clone }}
-  clone: {{ toYaml . | nindent 4 }}
-  {{- end }}
+  {{- if $clone }}{{ if not $clone.namespace }}
+  clone: {{ toYaml $clone | nindent 4 }}
+  {{- else }}
+  clone:
+    cluster: {{ include "agency.releaseName" . }}-source
+  {{- end }}{{ end }}
   {{- with .Values.db.standby }}
   {{- if .enabled }}
   standby:
-    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/{{ $.Values.db.version }}
+    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default $clusterName }}/{{ .uid }}/wal/{{ $.Values.db.version }}
   {{- end }}
   {{- end }}
+{{- if $clone }}{{ if $clone.namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: standby.{{ include "agency.releaseName" . }}-source.credentials
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "agency.labels" . | nindent 4 }}
+  annotations:
+    reflector.v1.k8s.emberstack.com/reflects: "{{ $clone.namespace -}} /standby.
+      {{- $clone.cluster | default $clusterName -}} .credentials"
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agency.releaseName" . }}-source
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "agency.labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{ $clone.cluster | default $clusterName -}} .
+    {{- $clone.namespace -}} .svc.cluster.local
+  ports:
+  - name: postgres
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+{{- end }}{{ end }}
