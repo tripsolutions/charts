@@ -64,7 +64,7 @@ spec:
       configMap:
         name: {{ include "clusterName" . }}-queries
     targetContainers:
-    - name: exporter
+    - exporter
 ---
 apiVersion: v1
 kind: ConfigMap
