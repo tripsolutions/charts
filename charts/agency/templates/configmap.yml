@@ -234,3 +234,8 @@ data:
 
     [formatter_generic]
     format = %(asctime)s %(levelname)-5.5s [%(name)s][%(threadName)s] %(message)s
+  {{- with $exporter := .Values.global.db_exporter }}
+  {{- if and $exporter.enabled (len $exporter.extraQueries) }}
+  queries.yaml: |
+    {{- toYaml $exporter.extraQueries | nindent 4 }}
+  {{- end }}{{ end }}

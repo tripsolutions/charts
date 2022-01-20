@@ -40,6 +40,32 @@ spec:
     s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default $clusterName }}/{{ .uid }}/wal/{{ $.Values.db.version }}
   {{- end }}
   {{- end }}
+  {{- with $exporter := .Values.global.db_exporter }}{{ if $exporter.enabled }}
+  sidecars:
+  - name: exporter
+    image: {{ $exporter.image }}
+    ports:
+    - name: http-prom
+      containerPort: 9187
+      protocol: TCP
+    env:
+    - name: DATA_SOURCE_NAME
+      value: postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost/postgres
+    {{- if len $exporter.extraQueries }}
+    - name: PG_EXPORTER_EXTEND_QUERY_PATH
+      value: /queries.yaml
+  additionalVolumes:
+  - name: queries
+    mountPath: /queries.yaml
+    subPath: queries.yaml
+    volumeSource:
+      name: config
+      configMap:
+        name: {{ include "agency.releaseName" $ }}-config
+    targetContainers:
+    - exporter
+    {{- end }}
+  {{- end }}{{ end }}
 {{- if $clone }}{{ if $clone.namespace }}
 ---
 apiVersion: v1
