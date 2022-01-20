@@ -14,6 +14,9 @@ metadata:
   {{- end }}
   labels:
     {{- include "agency.labels" . | nindent 4 }}
+    {{- with $exporter := .Values.global.db_exporter }}{{ if $exporter.enabled }}
+    exporter: "true"
+    {{- end }}{{ end }}
 spec:
   teamId: {{ .Values.db.teamId }}
   volume: {{ toYaml .Values.db.volume | nindent 4 }}
