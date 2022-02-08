@@ -55,3 +55,14 @@ Cluster name
 {{- .Values.db.operator_install.teamId -}}-{{- .Release.Name -}} -cluster
 {{- end -}}
 {{- end -}}
+
+{{/*
+Short release name
+*/}}
+{{- define "releaseName" -}}
+{{- if hasPrefix "etrip-" .Release.Name }}
+{{- trimPrefix "etrip-" .Release.Name -}}
+{{- else -}}
+{{- .Release.Name }}
+{{- end -}}
+{{- end -}}

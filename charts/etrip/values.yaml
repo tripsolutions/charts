@@ -94,8 +94,8 @@ etrip:
   other_slow_urls: []
   searchlogs:
     enabled: false
-    table: default
-    host: etrip-searchlogs-cluster
+    table: null
+    host: searchlogs-cluster
     username: searchlogs
     dbname: searchlogs
     port: 5432
@@ -656,8 +656,8 @@ etrip:
 elogger:
   enabled: false
   db:
-    table: default
-    host: etrip-logging-cluster
+    table: null
+    host: elogger-cluster
     username: elogger
     dbname: elogger
     port: 5432
@@ -671,7 +671,13 @@ elogger:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: elogger
-    tag: latest
+    tag: v0.1.0
+
+  ingress:
+    enabled: true
+    prefix: /elogger
+    passwords: {}
+      # user: $apr1$foo
 
 smtpgate:
   enabled: false

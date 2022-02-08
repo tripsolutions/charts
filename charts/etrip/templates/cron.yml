@@ -86,7 +86,7 @@ spec:
                 {{- $.Values.etrip.searchlogs.host }} port=
                 {{- $.Values.etrip.searchlogs.port }}
             - name: ETRIP_SEARCHLOGS_TABLE
-              value: {{ $.Values.etrip.searchlogs.table }}
+              value: {{ $.Values.etrip.searchlogs.table | default (include "releaseName" $) }}
             {{- end }}
             {{- if .env }}
             {{- range .env }}
@@ -141,19 +141,9 @@ spec:
             - name: ELOGGER_DBPORT
               value: {{ $.Values.elogger.db.port | quote }}
             - name: ELOGGER_TABLE
-              value: {{ $.Values.elogger.db.table }}
-            command:
-              - sh
-              - -c 
-              - |
-                while true; do
-                  if [ -r /tmp/elogger/elogger.done ]; then
-                    break
-                  fi
-                  sendlogs
-                  sleep 60
-                done
-                sendlogs
+              value: {{ $.Values.elogger.db.table | default (include "releaseName" $) }}
+            - name: ELOGGER_INGRESS
+              value: "false"
             volumeMounts:
             - mountPath: /tmp/elogger
               name: elogger

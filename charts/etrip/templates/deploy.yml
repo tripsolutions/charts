@@ -176,7 +176,7 @@ spec:
             {{- $.Values.etrip.searchlogs.host }} port=
             {{- $.Values.etrip.searchlogs.port }}
         - name: ETRIP_SEARCHLOGS_TABLE
-          value: {{ $.Values.etrip.searchlogs.table }}
+          value: {{ $.Values.etrip.searchlogs.table | default (include "releaseName" $) }}
         {{- end }}
         - name: ETRIP_LOGDIR
           value: /tmp/elogger
@@ -340,18 +340,28 @@ spec:
         - name: ELOGGER_DBPORT
           value: {{ .Values.elogger.db.port | quote }}
         - name: ELOGGER_TABLE
-          value: {{ .Values.elogger.db.table }}
-        command:
-          - sh
-          - -c 
-          - |
-            while true; do
-              sendlogs
-              sleep 60
-            done
+          value: {{ .Values.elogger.db.table | default (include "releaseName" $) }}
+        {{- if .Values.elogger.ingress.enabled }}
+        - name: ELOGGER_PREFIX
+          value: {{ .Values.elogger.ingress.prefix }}
+        {{- if ne (len .Values.elogger.ingress.passwords) 0 }}
+        - name: ELOGGER_HTPASSWD
+          value: /config/htpasswd
+        {{- end }}
+        ports:
+        - containerPort: 8999
+          name: elogger
+          protocol: TCP
+        {{- end }}
         volumeMounts:
         - mountPath: /tmp/elogger
           name: elogger
+        {{- if and .Values.elogger.ingress.enabled 
+            (ne (len .Values.elogger.ingress.passwords) 0) }}
+        - mountPath: /config/htpasswd
+          name: config
+          subPath: elogger/htpasswd
+        {{- end }}
       {{- end }}
       {{- if .Values.smtpgate.enabled }}
       - name: smtp
@@ -410,6 +420,11 @@ spec:
           {{- if .Values.api.enabled }}
           - key: api.ini
             path: api/api.ini
+          {{- end }}
+          {{- if and .Values.elogger.enabled .Values.elogger.ingress.enabled 
+            (ne (len .Values.elogger.ingress.passwords) 0) }}
+          - key: elogger_htpasswd
+            path: elogger/htpasswd
           {{- end }}
       - name: elogger
         emptyDir: {}
