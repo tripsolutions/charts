@@ -28,11 +28,6 @@ spec:
     targetPort: frontend-{{ $key }}
   {{- end }}
   {{- end }}
-  {{- if and .Values.elogger.enabled .Values.elogger.ingress.enabled }}
-  - name: elogger
-    port: 8999
-    targetPort: elogger
-  {{- end }}
   {{- if .Values.api.enabled }}
   - name: api
     port: 6543

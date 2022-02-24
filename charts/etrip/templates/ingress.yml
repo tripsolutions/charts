@@ -28,15 +28,6 @@ spec:
             port:
               name: api
       {{- end }}
-      {{- if and $.Values.elogger.enabled $.Values.elogger.ingress.enabled }}
-      - path: {{ $.Values.elogger.ingress.prefix }}
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ $name }}-admin
-            port:
-              name: elogger
-      {{- end }}
       - path: /
         pathType: Prefix
         backend:

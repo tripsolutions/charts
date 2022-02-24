@@ -64,13 +64,6 @@ data:
     {{$key}}:{{$val}}
     {{- end }}
   {{- end }}
-  {{- if and .Values.elogger.enabled .Values.elogger.ingress.enabled 
-      (ne (len .Values.elogger.ingress.passwords) 0) }}
-  elogger_htpasswd: |
-    {{- range $key, $val := .Values.elogger.ingress.passwords }}
-    {{$key}}:{{$val}}
-    {{- end }}
-  {{- end }}
   etrip-fpm.ini: |
     [global]
     daemonize = no

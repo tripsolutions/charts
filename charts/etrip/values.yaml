@@ -94,8 +94,8 @@ etrip:
   other_slow_urls: []
   searchlogs:
     enabled: false
-    table: null
-    host: searchlogs-cluster
+    table: default
+    host: etrip-searchlogs-cluster
     username: searchlogs
     dbname: searchlogs
     port: 5432
@@ -656,8 +656,8 @@ etrip:
 elogger:
   enabled: false
   db:
-    table: null
-    host: elogger-cluster
+    table: default
+    host: etrip-logging-cluster
     username: elogger
     dbname: elogger
     port: 5432
@@ -671,13 +671,7 @@ elogger:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: elogger
-    tag: v0.1.0
-
-  ingress:
-    enabled: true
-    prefix: /elogger
-    passwords: {}
-      # user: $apr1$foo
+    tag: latest
 
 smtpgate:
   enabled: false
@@ -775,6 +769,14 @@ b2b:
       bounceEmail: ""
       receipients: []
       subject: Bus booking {booking_id} destination {destination}
+    other:
+      bookingType: bus
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Other booking {booking_id} destination {destination}
 
   image:
     pullPolicy: IfNotPresent
