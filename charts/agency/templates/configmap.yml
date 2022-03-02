@@ -86,6 +86,10 @@ data:
         {{- end }}
     {{ end }}
 
+    {{ with .Values.agency.generali -}}
+    generali.url = {{ .url }}
+    {{ end }}
+
     {{ with .Values.agency.flexitech -}}
     flexitech.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
             api.flexitechsolutions.co.uk
