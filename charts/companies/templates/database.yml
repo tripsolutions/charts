@@ -32,7 +32,7 @@ spec:
   resources: {{ toYaml .Values.resources.db | nindent 4 }}
   {{- end }}
   {{- if $clone }}{{ if not $clone.namespace }}
-  clone: {{ toYaml . | nindent 4 }}
+  clone: {{ toYaml $clone | nindent 4 }}
   {{- else }}
   clone:
     cluster: {{ include "companies.releaseName" . }}-source
