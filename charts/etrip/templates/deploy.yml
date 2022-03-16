@@ -223,9 +223,9 @@ spec:
       {{- $port := 6000 }}
       {{- range $b2bidx, $b2b := .Values.b2b }}
       - name: b2b-{{ $b2bidx }}
-        {{- with $b2b.image }}
-        image: {{ .registry -}} / {{- .name -}} : 
-          {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+        {{- with $image := merge $b2b.image $.Values.b2b_defaults.image }}
+        image: {{ $image.registry -}} / {{- $image.name -}} : 
+          {{- $image.tag | default $.Values.version | default $.Chart.AppVersion | toString }}
         imagePullPolicy: {{ .pullPolicy }}
         {{- end }}
         env:
