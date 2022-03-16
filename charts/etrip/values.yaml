@@ -68,14 +68,6 @@ etrip:
       high: 2
       phpValues:
         <<: *phpValues
-    b2b:
-      port: 8003
-      max: 16
-      start: 5
-      low: 2
-      high: 10
-      phpValues:
-        <<: *phpValues
   passwords: {}
   #  user: $apr1$foobar
   trusted_ips:
@@ -682,9 +674,7 @@ smtpgate:
   always_bcc: false
   imageVersion: v3.3.1-alpine
 
-b2b:
-  enabled: false
-  merge: false
+b2b_defaults:
   config:
     cors: false
     etripPath: /var/www/localhost
@@ -783,7 +773,13 @@ b2b:
     registry: eu.gcr.io/tripsol
     name: etrip-b2b
     tag: latest
-
+  fpm:
+    max: 16
+    start: 5
+    low: 2
+    high: 10
+    phpValues:
+      <<: *phpValues
 frontends:
   # old style frontends
   enabled: false

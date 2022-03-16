@@ -8,17 +8,21 @@ metadata:
 data:
   etrip.json: |
     {{- toJson .Values.etrip.config | nindent 4 }}
-  {{- $config := .Values.b2b.config }}
-  {{- if .Values.b2b.merge }}
-  {{- if and .Values.ingress.enabled }}
-  {{- $config = $config | merge (dict "etripUrl" (print (ternary "https" "http" (default false .Values.ingress.tls) ) "://" (index .Values.ingress.admin.hostnames 0) ) ) }}
-  {{- if .Values.ingress.b2b }}
-  {{- $config = $config | merge (dict "url" ( print (ternary "https" "http" (default false .Values.ingress.tls) ) "://" (index .Values.ingress.b2b.hostnames 0) "/" ) ) }}
+  {{- range $key, $instance := .Values.b2b }}
+  {{- $config := merge $instance.config $.Values.b2b_defaults.config }}
+  {{- if $.Values.ingress.enabled }}
+  {{- $b2bIngress := index $.Values.ingress.b2b $key }}
+  {{- $config = $config | merge (dict "etripUrl" (print (
+    ternary "https" "http" (default false $.Values.ingress.tls) ) "://" 
+                           (index $.Values.ingress.admin.hostnames 0) ) ) }}
+  {{- $config = $config | merge (dict "url" ( print (
+    ternary "https" "http" (default false $.Values.ingress.tls) ) "://" 
+                           (index $b2bIngress.hostnames 0) "/" ) ) }}
   {{- end }}
-  {{- end }}
-  {{- end }}
-  b2b.json: |
+
+  b2b-{{ $key }}.json: |
     {{- toJson $config | nindent 4 }}
+  {{- end }}
   etrip-nginx.conf: |
     {{- if eq (len .Values.etrip.passwords) 0 }}
     geo $trusted { default 1; }
@@ -91,6 +95,34 @@ data:
     {{- range $pkey, $pval := . }}
     php_admin_value[{{$pkey}}] = {{$pval}}
     {{- end }}{{end}}
+    {{- end }}
+    {{- end }}
+
+    {{- range $key, $instance := .Values.b2b }}
+    {{ $val := merge $instance.fpm $.Values.b2b_defaults.fpm }}
+    {{- if not ($val.disabled) }}
+
+    [fpm-b2b-{{$key}}]
+    listen = {{ $val.port }}
+    user = nginx
+    group = nginx
+    pm = {{ $val.mode | default "dynamic" }}
+    pm.max_children = {{ $val.max }}
+    pm.start_servers = {{ $val.start }}
+    pm.min_spare_servers = {{ $val.low }}
+    pm.max_spare_servers = {{ $val.high }}
+    ping.path = /ping
+    request_terminate_timeout = 300
+    clear_env = no
+    {{- with $val.phpValues -}}
+    {{- range $pkey, $pval := . }}
+    php_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- with $val.phpAdminValues -}}
+    {{- range $pkey, $pval := . }}
+    php_admin_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    env[B2B_CONFIG] = /config/b2b-{{$key}}.json
     {{- end }}
     {{- end }}
   {{- if .Values.frontends.enabled }}

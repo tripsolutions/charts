@@ -220,21 +220,22 @@ spec:
           protocol: TCP
         resources:
           {{- toYaml .Values.resources.web | nindent 10 }}
-      {{- if .Values.b2b.enabled }}
-      - name: b2b
-        {{- with .Values.b2b.image }}
+      {{- $port := 6000 }}
+      {{- range $b2bidx, $b2b := .Values.b2b }}
+      - name: b2b-{{ $b2bidx }}
+        {{- with $b2b.image }}
         image: {{ .registry -}} / {{- .name -}} : 
           {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
         imagePullPolicy: {{ .pullPolicy }}
         {{- end }}
         env:
         - name: NGINX_PORT
-          value: "81"
+          value: {{ $port | quote }}
         - name: TARGET_FPM
-          value: localhost:{{ .Values.etrip.fpm.b2b.port }}
+          value: localhost:{{ $b2b.fpm.port }}
         ports:
-        - containerPort: 81
-          name: b2b
+        - containerPort: {{ $port }}{{ $port = add $port 1}}
+          name: b2b-{{ $b2bidx }}
           protocol: TCP
       {{- end }}
       {{- if .Values.frontends.enabled }}
@@ -393,8 +394,6 @@ spec:
           items:
           - key: etrip.json
             path: etrip/config.json
-          - key: b2b.json
-            path: etrip/b2b.json
           - key: etrip-nginx.conf
             path: etrip/nginx.conf
           {{- if ne (len .Values.etrip.passwords) 0 }}
@@ -411,6 +410,10 @@ spec:
           - key: api.ini
             path: api/api.ini
           {{- end }}
+          {{ range $b2bkey, $b2b := .Values.b2b}}
+          - key: b2b-{{$b2bkey}}.json
+            path: etrip/b2b-{{$b2bkey}}.json
+          {{ end }}
       - name: elogger
         emptyDir: {}
       {{- if .Values.frontends.enabled}}

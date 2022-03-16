@@ -165,8 +165,6 @@ spec:
               items:
               - key: etrip.json
                 path: etrip/config.json
-              - key: b2b.json
-                path: etrip/b2b.json
               - key: etrip-nginx.conf
                 path: etrip/nginx.conf
               {{- if ne (len $.Values.etrip.passwords) 0 }}
@@ -175,6 +173,10 @@ spec:
               {{- end }}
               - key: etrip-fpm.ini
                 path: etrip/fpm.ini
+              {{ range $b2bkey, $b2b := .Values.b2b}}
+              - key: b2b-{{$b2bkey}}.json
+                path: etrip/b2b-{{$b2bkey}}.json
+              {{ end }}
           - name: elogger
             emptyDir: {}
 ---
