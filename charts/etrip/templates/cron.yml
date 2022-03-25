@@ -59,7 +59,7 @@ spec:
             - name: ETRIP_DSN_RO
               {{ if .global.Values.db.use_operator -}}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                {{- include "clusterName" $ }}-repl connect_timeout=1
+                {{- include "clusterName" .global }}-repl connect_timeout=1
               {{- else -}}
               value: sslmode=disable password=$(DB_PASSWORD) user= 
                 {{- .global.Values.db.custom_install.username }} dbname=
