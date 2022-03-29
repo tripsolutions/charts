@@ -177,8 +177,11 @@ spec:
 ---
 {{- end }}
 {{- range $b2bkey, $b2bInstance := .Values.b2b -}}
+{{- $b2bInstance = mergeOverwrite $.Values.b2b_defaults $b2bInstance }}
 {{- range $b2bInstance.cron -}}
+{{- if not .cron_disable }}
 {{- include "etripCronjob" (dict "cron" . "global" $ "b2bKey" $b2bkey ) }}
 ---
+{{- end }}
 {{- end }}
 {{- end }}
