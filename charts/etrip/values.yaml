@@ -858,18 +858,18 @@ db:
     resources: {}
     exporter:
       enabled: false
-      image: quay.io/prometheuscommunity/postgres_exporter:v0.10.1
+      image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
       extraQueries:
         pg_replication:
           query: |-
             SELECT
               CASE WHEN pg_is_in_recovery()
-              THEN extract(EPOCH FROM CURRENTY_TIMESTAMP - 
+              THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
                 pg_last_xact_replay_timestamp())
               ELSE NULL END AS lag,
               pg_wal_lsn_diff(
                 CASE WHEN pg_is_in_recovery()
-                THEN pg_last_xact_replay_lsn()
+                THEN pg_last_wal_replay_lsn()
                 ELSE pg_current_wal_lsn() END,
                 '0/0') AS current_lsn;
           metrics:
@@ -877,7 +877,7 @@ db:
               usage: GAUGE
               description: Replication lag behind master in seconds
           - current_lsn:
-              usage: GAUGE
+              usage: COUNTER
               description: Current WAL/LSN stream location in bytes
 
   custom_install: 
