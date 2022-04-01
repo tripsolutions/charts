@@ -60,6 +60,7 @@ etrip:
       high: 4
       phpValues:
         <<: *phpValues
+        session.gc_maxlifetime: 900
     slow:
       port: 8002
       max: 4
