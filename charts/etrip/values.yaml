@@ -60,6 +60,7 @@ etrip:
       high: 4
       phpValues:
         <<: *phpValues
+        session.gc_maxlifetime: 900
     slow:
       port: 8002
       max: 4
@@ -68,15 +69,7 @@ etrip:
       high: 2
       phpValues:
         <<: *phpValues
-    b2b:
-      port: 8003
-      max: 16
-      start: 5
-      low: 2
-      high: 10
-      phpValues:
-        <<: *phpValues
-  nginx: 
+  nginx:
     workers: 2
   passwords: {}
   #  user: $apr1$foobar
@@ -682,9 +675,9 @@ smtpgate:
   user: false
   password: password
   always_bcc: false
+  imageVersion: v3.3.1-alpine
 
-b2b:
-  enabled: false
+b2b_defaults:
   config:
     cors: false
     etripPath: /var/www/localhost
@@ -753,12 +746,44 @@ b2b:
       bounceEmail: ""
       receipients: []
       subject: Cruise booking {booking_id} destination {destination}
+    transfer:
+      bookingType: transfer
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Transfer booking {booking_id} destination {destination}
+    bus:
+      bookingType: bus
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Bus booking {booking_id} destination {destination}
+    other:
+      bookingType: bus
+      fromEmail: ""
+      fromName: ""
+      replyTo: ""
+      bounceEmail: ""
+      receipients: []
+      subject: Other booking {booking_id} destination {destination}
 
   image:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: etrip-b2b
     tag: latest
+  
+  fpm:
+    max: 16
+    start: 5
+    low: 2
+    high: 10
+    phpValues:
+      <<: *phpValues
 
 frontends:
   # old style frontends
@@ -822,13 +847,39 @@ db:
       size: 5Gi
     # clone: 
     #   cluster: master
+    #   namespace: ns
     # refresh: 10 2 * * *
+    # allowCloneFrom: ns
     standby:
       enabled: false
       bucket: k8s-pg-wal
       uid: null
     # don't override operator defaults
     resources: {}
+    exporter:
+      enabled: false
+      image: quay.io/prometheuscommunity/postgres_exporter:v0.10.1
+      extraQueries:
+        pg_replication:
+          query: |-
+            SELECT
+              CASE WHEN pg_is_in_recovery()
+              THEN extract(EPOCH FROM CURRENTY_TIMESTAMP - 
+                pg_last_xact_replay_timestamp())
+              ELSE NULL END AS lag,
+              pg_wal_lsn_diff(
+                CASE WHEN pg_is_in_recovery()
+                THEN pg_last_xact_replay_lsn()
+                ELSE pg_current_wal_lsn() END,
+                '0/0') AS current_lsn;
+          metrics:
+          - lag:
+              usage: GAUGE
+              description: Replication lag behind master in seconds
+          - current_lsn:
+              usage: GAUGE
+              description: Current WAL/LSN stream location in bytes
+
   custom_install: 
     # for use_operator = false
     host: tripsol-clients.default.svc

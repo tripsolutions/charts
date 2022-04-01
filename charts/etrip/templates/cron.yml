@@ -1,15 +1,15 @@
-{{ range .Values.cron -}}
+{{- define "etripCronjob" }}
 kind: CronJob
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 metadata:
-  name: {{ $.Release.Name }}-cron-{{ .name  }}
-  namespace: {{ $.Release.Namespace }}
+  name: {{ .global.Release.Name }}-cron-{{ .cron.name  }}
+  namespace: {{ .global.Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- include "labels" .global | nindent 4 }}
 spec:
-  schedule: {{ .schedule | quote }}
-  successfulJobsHistoryLimit: {{ .doneHistory | default 3 }}
-  failedJobsHistoryLimit: {{ .failedHistory | default 1 }}
+  schedule: {{ .cron.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .cron.doneHistory | default 3 }}
+  failedJobsHistoryLimit: {{ .cron.failedHistory | default 1 }}
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -18,7 +18,7 @@ spec:
           restartPolicy: Never
           containers:
           - name: job
-            {{- include "etripImage" $ | nindent 12 }}
+            {{- include "etripImage" .global | nindent 12 }}
             volumeMounts:
             - mountPath: /config
               name: config
@@ -28,77 +28,79 @@ spec:
             env:
             - name: DB_PASSWORD
               valueFrom:
-              {{- if $.Values.db.use_operator }}
+              {{- if .global.Values.db.use_operator }}
                 secretKeyRef: 
-                  name: etrip. {{- include "clusterName" $ -}} .credentials
+                  name: etrip. {{- include "clusterName" .global -}} .credentials
                   key: password
               {{- else }}
                 secretKeyRef:
-                  {{- if $.Values.db.custom_install.password.useSecret }}
-                  name: {{ $.Values.db.custom_install.password.fromSecret }}
-                  key: {{ $.Values.db.custom_install.password.fromSecretKey }}
+                  {{- if .global.Values.db.custom_install.password.useSecret }}
+                  name: {{ .global.Values.db.custom_install.password.fromSecret }}
+                  key: {{ .global.Values.db.custom_install.password.fromSecretKey }}
                   {{- else }}
-                  name: {{ $.Release.Name }}-secrets
+                  name: {{ .global.Release.Name }}-secrets
                   key: dbpassword
                   {{- end }}
               {{- end }}
             - name: ETRIP_CONFIG
               value: /config
             - name: ETRIP_DSN
-              {{- if $.Values.db.use_operator }}
+              {{- if .global.Values.db.use_operator }}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                  {{- include "clusterName" $ }}
+                  {{- include "clusterName" .global }}
               {{- else }}
-              value: sslmode=disable password=$(DB_PASSWORD) user= 
-                  {{- $.Values.db.custom_install.username }} dbname=
-                  {{- $.Values.db.custom_install.dbname}} host=
-                  {{- $.Values.db.custom_install.host }} port=
-                  {{- $.Values.db.custom_install.port }}
+              value: sslmode=disable password=$(DB_PASSWORD) user=
+                  {{- .global.Values.db.custom_install.username }} dbname=
+                  {{- .global.Values.db.custom_install.dbname}} host=
+                  {{- .global.Values.db.custom_install.host }} port=
+                  {{- .global.Values.db.custom_install.port }}
               {{- end }}
+            {{- if and .global.Values.db.use_operator ( gt (int .global.Values.replicas.db) 1 ) }}
             - name: ETRIP_DSN_RO
-              {{ if $.Values.db.use_operator -}}
+              {{ if .global.Values.db.use_operator -}}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                {{- include "clusterName" $ }}-repl connect_timeout=1
+                {{- include "clusterName" .global }}-repl connect_timeout=1
               {{- else -}}
               value: sslmode=disable password=$(DB_PASSWORD) user= 
-                {{- $.Values.db.custom_install.username }} dbname=
-                {{- $.Values.db.custom_install.dbname}} host=
-                {{- $.Values.db.custom_install.host }} port=
-                {{- $.Values.db.custom_install.port }}
+                {{- .global.Values.db.custom_install.username }} dbname=
+                {{- .global.Values.db.custom_install.dbname}} host=
+                {{- .global.Values.db.custom_install.host }} port=
+                {{- .global.Values.db.custom_install.port }}
               {{- end }}
-            {{- if $.Values.etrip.searchlogs.enabled }}
+            {{- end }}
+            {{- if .global.Values.etrip.searchlogs.enabled }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
-                  {{- if $.Values.etrip.searchlogs.is_operator }}
-                  name: {{ printf "%s.%s.credentials" $.Values.etrip.searchlogs.username $.Values.etrip.searchlogs.host }}
+                  {{- if .global.Values.etrip.searchlogs.is_operator }}
+                  name: {{ printf "%s.%s.credentials" .global.Values.etrip.searchlogs.username .global.Values.etrip.searchlogs.host }}
                   key: password
                   {{- else }}
-                  name: {{ $.Values.etrip.searchlogs.password.fromSecret }}
-                  key: {{ $.Values.etrip.searchlogs.password.fromSecretKey }}
+                  name: {{ .global.Values.etrip.searchlogs.password.fromSecret }}
+                  key: {{ .global.Values.etrip.searchlogs.password.fromSecretKey }}
                   {{- end }}
             - name: ETRIP_SEARCHLOGS_DSN
               value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
-                {{- $.Values.etrip.searchlogs.username }} dbname=
-                {{- $.Values.etrip.searchlogs.dbname }} host=
-                {{- $.Values.etrip.searchlogs.host }} port=
-                {{- $.Values.etrip.searchlogs.port }}
+                {{- .global.Values.etrip.searchlogs.username }} dbname=
+                {{- .global.Values.etrip.searchlogs.dbname }} host=
+                {{- .global.Values.etrip.searchlogs.host }} port=
+                {{- .global.Values.etrip.searchlogs.port }}
             - name: ETRIP_SEARCHLOGS_TABLE
-              value: {{ $.Values.etrip.searchlogs.table }}
+              value: {{ .global.Values.etrip.searchlogs.table }}
             {{- end }}
-            {{- if .env }}
-            {{- range .env }}
+            {{- if .cron.env }}
+            {{- range .cron.env }}
             - name: {{ .key }}
               value: {{ .value }}
             {{- end }}
             {{- end }}
             - name: ETRIP_LOGDIR
               value: /tmp/elogger
-            {{- if $.Values.smtpgate.enabled }}
+            {{- if .global.Values.smtpgate.enabled }}
             - name: ETRIP_SMTP_HOST
-              value: {{ $.Release.Name }}-admin
+              value: {{ .global.Release.Name }}-admin
             {{- end }}
-            {{- with .resources }}
+            {{- with .cron.resources }}
             resources:
               {{- toYaml . | nindent 14 }}
             {{- end }}
@@ -106,13 +108,13 @@ spec:
               - /bin/sh
               - -c
               - |
-                {{- .command | toString | nindent 16 }}
+                {{- .cron.command | toString | nindent 16 }}
                 touch /tmp/elogger/elogger.done
-          {{- if and $.Values.elogger.enabled (not .nologs ) }}
+          {{- if and .global.Values.elogger.enabled (not .nologs ) }}
           - name: sendlogs
-            {{- with $.Values.elogger.image }}
+            {{- with .global.Values.elogger.image }}
             image: {{ .registry -}} / {{- .name -}} : 
-              {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+              {{- .tag | default $.global.Values.version | default $.global.Chart.AppVersion | toString }}
             imagePullPolicy: {{ .pullPolicy }}
             {{ end -}}
             env:
@@ -121,25 +123,25 @@ spec:
             - name: ELOGGER_DIR
               value: /tmp/elogger
             - name: ELOGGER_DBHOST
-              value: {{ $.Values.elogger.db.host }}
+              value: {{ .global.Values.elogger.db.host }}
             - name: ELOGGER_DBNAME
-              value: {{ $.Values.elogger.db.dbname }}
+              value: {{ .global.Values.elogger.db.dbname }}
             - name: ELOGGER_DBUSER
-              value: {{ $.Values.elogger.db.username }}
+              value: {{ .global.Values.elogger.db.username }}
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
-                  {{- if $.Values.elogger.db.is_operator }}
-                  name: {{ printf "%s.%s.credentials" $.Values.elogger.db.username $.Values.elogger.db.host }}
+                  {{- if .global.Values.elogger.db.is_operator }}
+                  name: {{ printf "%s.%s.credentials" .global.Values.elogger.db.username .global.Values.elogger.db.host }}
                   key: password
                   {{- else }}
-                  name: {{ $.Values.elogger.db.password.fromSecret }}
-                  key: {{ $.Values.elogger.db.password.fromSecretKey }}
+                  name: {{ .global.Values.elogger.db.password.fromSecret }}
+                  key: {{ .global.Values.elogger.db.password.fromSecretKey }}
                   {{- end }}
             - name: ELOGGER_DBPORT
-              value: {{ $.Values.elogger.db.port | quote }}
+              value: {{ .global.Values.elogger.db.port | quote }}
             - name: ELOGGER_TABLE
-              value: {{ $.Values.elogger.db.table }}
+              value: {{ .global.Values.elogger.db.table }}
             command:
               - sh
               - -c 
@@ -159,15 +161,27 @@ spec:
           volumes:
           - name: config
             configMap:
-              name: {{ $.Release.Name }}-config
+              name: {{ .global.Release.Name }}-config
               items:
               - key: etrip.json
                 path: etrip/config.json
-              {{- if .Values.b2b.enabled }}
-              - key: b2b.json
+              {{- with $b2bkey := .b2bKey }}
+              - key: b2b-{{$b2bkey}}.json
                 path: etrip/b2b.json
               {{- end }}
           - name: elogger
             emptyDir: {}
+{{- end }}
+{{- range .Values.cron -}}
+{{- include "etripCronjob" (dict "cron" . "global" $ ) }}
 ---
+{{- end }}
+{{- range $b2bkey, $b2bInstance := .Values.b2b -}}
+{{- $b2bInstance = mergeOverwrite $.Values.b2b_defaults $b2bInstance }}
+{{- if not $b2bInstance.cron_disable }}
+{{- range $b2bInstance.cron -}}
+{{- include "etripCronjob" (dict "cron" . "global" $ "b2bKey" $b2bkey ) }}
+---
+{{- end }}
+{{- end }}
 {{- end }}

@@ -11,10 +11,11 @@ spec:
   - name: etrip
     port: 80
     targetPort: etrip
-  {{- if .Values.b2b.enabled }}
-  - name: b2b
-    port: 81
-    targetPort: b2b
+  {{- $port := 6000 -}}
+  {{- range $idx, $instance := .Values.b2b }}
+  - name: b2b-{{ $idx }}
+    port: {{ $port }}{{ $port = add $port 1 }}
+    targetPort: b2b-{{ $idx }}
   {{- end }}
   {{- if .Values.smtpgate.enabled }}
   - name: smtp

@@ -1,9 +1,14 @@
-{{- if .Values.db.use_operator -}}
+{{- if .Values.db.use_operator }}
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
   name: {{ include "clusterName" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" $ | nindent 4 }}
+    {{- if .Values.db.operator_install.exporter.enabled }}
+    exporter: "true"
+    {{- end }}
   {{- if .Values.db.operator_install.controller }}
   annotations:
     acid.zalan.do/controller: {{ .Values.db.operator_install.controller }}
@@ -19,18 +24,60 @@ spec:
   postgresql:
     version: "11" # postgres >12 does not support OIDs
     parameters: {{ toYaml .Values.db.operator_install.dbParameters | nindent 6}}
-  {{ with .Values.db.operator_install.resources -}}
+  {{- with .Values.db.operator_install.resources }}
   resources: {{ toYaml . | nindent 4 }}
-  {{ end -}}
-  {{ with .Values.db.operator_install.clone -}}
+  {{- end }}
+  {{- with .Values.db.operator_install.clone }}
+  {{- if not .namespace }}
   clone: {{ toYaml . | nindent 4 }}
-  {{ end -}}
-  {{ with .Values.db.operator_install.standby -}}
-  {{ if .enabled -}}
+  {{- else }}
+  clone:
+    cluster: {{ $.Release.Name }}-source
+  {{- end }}
+  {{- end }}
+  {{- with .Values.db.operator_install.standby }}
+  {{- if .enabled }}
   standby:
     s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/11
-  {{ end -}}
-  {{ end -}}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.db.operator_install.exporter.enabled }}
+  sidecars:
+  - name: exporter
+    image: {{ .Values.db.operator_install.exporter.image }}
+    ports:
+    - name: http-prom
+      containerPort: 9187
+      protocol: TCP
+    env:
+    - name: DATA_SOURCE_NAME
+      value: postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost/postgres
+  {{- if len .Values.db.operator_install.exporter.extraQueries }}
+    - name: PG_EXPORTER_EXTEND_QUERY_PATH
+      value: /queries.yaml
+  additionalVolumes:
+  - name: queries
+    mountPath: /queries.yaml
+    subPath: queries.yaml
+    volumeSource:
+      name: queries
+      configMap:
+        name: {{ include "clusterName" . }}-queries
+    targetContainers:
+    - exporter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clusterName" . }}-queries
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" $ | nindent 4 }}
+data:
+  queries.yaml: |
+    {{- toYaml .Values.db.operator_install.exporter.extraQueries | nindent 4 }}
+  {{- end }}
+  {{- end }}
 {{- if and .Values.db.operator_install.clone .Values.db.operator_install.refresh }}
 ---
 apiVersion: v1
@@ -123,5 +170,38 @@ spec:
             - name: ETRIP_CLUSTER
               value: {{ include "clusterName" . }}
 {{- end }}
+{{- if .Values.db.operator_install.clone }}
+{{- if .Values.db.operator_install.clone.namespace }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  {{- $clusterName := include "clusterName" . }}
+  name: standby.{{ .Release.Name }}-source.credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+  annotations:
+    reflector.v1.k8s.emberstack.com/reflects: "{{- .Values.db.operator_install.clone.namespace -}} /standby.
+      {{- .Values.db.operator_install.clone.cluster | default $clusterName -}} .credentials"
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-source
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  type: ExternalName
+  externalName: {{.Values.db.operator_install.clone.cluster | default $clusterName -}} .
+    {{- .Values.db.operator_install.clone.namespace -}} .svc.cluster.local
+  ports:
+  - name: postgres
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
 {{- end }}
-
+{{- end }}
+{{- end }}

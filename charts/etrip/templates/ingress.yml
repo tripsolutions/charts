@@ -36,8 +36,9 @@ spec:
             port:
               name: etrip
   {{- end }}{{ end }}
-  {{- with .Values.ingress.b2b }}
-  {{- range .hostnames }}
+  {{- range $key, $instance := .Values.b2b }}
+  {{- $b2bIngress := index $.Values.ingress.b2b $key -}}
+  {{- range $b2bIngress.hostnames }}
   - host: {{ . | quote }}
     http:
       paths:
@@ -54,7 +55,7 @@ spec:
           service:
             name: {{ $name }}-service
             port: 
-              name: b2b
+              name: b2b-{{ $key }}
   {{- end }}{{ end }}
   {{- if .Values.frontends.enabled }}
   {{- range $key, $val :=  .Values.ingress.frontends }}
@@ -77,8 +78,9 @@ spec:
     {{- range .hostnames }}
     - {{ . | quote }}
     {{- end }}{{ end }}
-    {{- with .Values.ingress.b2b }}
-    {{- range .hostnames }}
+    {{- range $key, $instance := .Values.b2b }}
+    {{- $b2bIngress := index $.Values.ingress.b2b $key -}}
+    {{- range $b2bIngress.hostnames }}
     - {{ . | quote }}
     {{- end }}{{ end }}
     {{- if .Values.frontends.enabled }}
