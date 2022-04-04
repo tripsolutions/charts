@@ -178,6 +178,12 @@ spec:
         - containerPort: 80
           name: etrip
           protocol: TCP
+        {{ $port := 5000 }}
+        {{- range $key, $instance := .Values.b2b }}
+        - containerPort: {{ $port }}{{ $port = add $port 1 }}
+          name: b2b-server-{{ $key }}
+          protocol: TCP
+        {{- end }}
         resources:
           {{- toYaml .Values.resources.fpm | nindent 10 }}
       {{- $port := 6000 }}

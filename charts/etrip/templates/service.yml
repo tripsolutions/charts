@@ -17,6 +17,12 @@ spec:
     port: {{ $port }}{{ $port = add $port 1 }}
     targetPort: b2b-{{ $idx }}
   {{- end }}
+{{- $port := 5000 -}}
+  {{- range $idx, $instance := .Values.b2b }}
+  - name: b2b-server-{{ $idx }}
+    port: {{ $port }}{{ $port = add $port 1 }}
+    targetPort: b2b-server-{{ $idx }}
+  {{- end }}
   {{- if .Values.smtpgate.enabled }}
   - name: smtp
     port: 25

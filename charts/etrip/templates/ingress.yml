@@ -48,7 +48,7 @@ spec:
           service:
             name: {{ $name }}-service
             port:
-              name: etrip
+              name: b2b-server-{{ $key }}
       - path: /
         pathType: Prefix
         backend:

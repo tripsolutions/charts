@@ -8,7 +8,6 @@ metadata:
 data:
   etrip.json: |
     {{- toJson .Values.etrip.config | nindent 4 }}
-  {{- if .Values.b2b.enabled }}
   {{- range $key, $instance := .Values.b2b }}
   {{- $config := mergeOverwrite $.Values.b2b_defaults.config $instance.config }}
   {{- if $.Values.ingress.enabled }}
@@ -23,7 +22,6 @@ data:
 
   b2b-{{ $key }}.json: |
     {{- toJson $config | nindent 4 }}
-  {{- end }}
   {{- end }}
   supervisor.conf: |
     [supervisord]
@@ -101,12 +99,6 @@ data:
           server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
       }
 
-      {{- if .Values.b2b.enabled }}
-      upstream b2b {
-          server localhost:{{ .Values.etrip.fpm.b2b.port }} max_fails=64 fail_timeout=1s;
-      }
-      {{- end }}
-
       server {
           listen *:80;
           server_name localhost;
@@ -135,17 +127,6 @@ data:
               fastcgi_send_timeout 300s; 
               fastcgi_pass background;
           }
-
-          {{- if .Values.b2b.enabled }}
-          location /server {
-              auth_basic off;
-              root /var/www/localhost/b2b;
-              fastcgi_split_path_info ^/server(.+\.php)(.*)$;
-              location ~ \.php {
-                fastcgi_pass b2b;
-              }
-          }
-          {{- end }}
 
           location / {
             location ~ \.php {
@@ -178,6 +159,32 @@ data:
           }
       }
 
+      {{ $port := 5000 }}
+      {{- range $key, $instance := .Values.b2b }}
+      upstream b2b-{{ $key }} {
+          server localhost:{{ $instance.fpm.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      server {
+          listen *:{{ $port }};{{ $port = add $port 1 }}
+          server_name localhost;
+          root /var/www/localhost/b2b;
+          location @404 { internal; }
+          index index.php;
+
+          fastcgi_split_path_info ^/server(.+\.php)(.*)$;
+          fastcgi_index index.php;
+          fastcgi_intercept_errors off;
+          error_page 404 @404;
+          include /etc/nginx/fastcgi.conf;
+
+          location /server {
+              location ~ \.php {
+                fastcgi_pass b2b-{{ $key }};
+              }
+          }
+      }
+      {{- end }}
     }
   {{- if ne (len .Values.etrip.passwords) 0 }}
   htpasswd: |
