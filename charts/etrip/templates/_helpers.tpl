@@ -50,6 +50,7 @@ Cluster name
 {{- define "clusterName" -}}
 {{- if or (hasPrefix (printf "%s-" .Values.db.operator_install.teamId) .Release.Name) 
     (eq .Values.db.operator_install.teamId .Release.Name) -}}
+{{- .Release.Name -}} -cluster
 {{- else -}}
 {{- .Values.db.operator_install.teamId -}}-{{- .Release.Name -}} -cluster
 {{- end -}}
