@@ -50,7 +50,7 @@ agency:
       schedule: 0 */3 * * *
     generaliCheckStatus:
       enabled: true
-      schedule: */2 * * * *
+      schedule: /*/2 * * * *
   mondial:
     env: test # test or live
     # values below would be the defaults if env is set to live
