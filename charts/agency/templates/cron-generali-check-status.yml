@@ -1,0 +1,62 @@
+{{ if .Values.agency.cron.generaliCheckStatus.enabled -}}
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+  name: {{ include "agency.releaseName" . }}-generali-check-status
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "agency.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.agency.cron.generaliCheckStatus.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: generali-check-status
+        {{- include "agency.labels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            cronjob-name: generali-check-status
+            {{- include "agency.labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: cron-generali-check-status
+            image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsUser: 100
+              runAsGroup: 101
+            volumeMounts:
+            - mountPath: /config
+              name: config
+              subPath: app
+            env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: 
+                    name: agency.{{ include "agency.clusterName" . }}.credentials
+                    key: password
+            - name: CONFIG_PATH
+              value: /config/agency.ini
+            command: [ python3 ]
+            args: 
+            - -c 
+            - |
+              from agency.tasks import generali_check_status
+              generali_check_status(
+                '/config/agency.ini#agency'
+              )
+            resources:
+              {{- toYaml .Values.resources.cron | nindent 14 }}
+          volumes:
+          - name: config
+            configMap:
+              name: {{ include "agency.releaseName" . }}-config
+              items:
+              - key: agency.ini
+                path: app/agency.ini
+{{- end }}
