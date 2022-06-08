@@ -190,6 +190,52 @@ spec:
         resources:
           {{- toYaml .Values.resources.web | nindent 10 }}
       {{- end }}
+      {{- with $generali := .Values.agency.generali }}
+      - name: generali-loop
+        image: {{ $.Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" $ }}
+        imagePullPolicy: {{ $.Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 100
+          runAsGroup: 101
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: app
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: 
+              name: agency.{{ include "agency.clusterName" $ }}.credentials
+              key: password
+        - name: CONFIG_PATH
+          value: /config/agency.ini
+        resources:
+          {{- $generali.loopResources | default $.Values.resources.cron | toYaml | nindent 10 }}
+        command: [ python3 ]
+        args:
+        - -c
+        - |
+          from agency.tasks import generali_check_status
+          import sched, time, logging
+          logging.basicConfig(level=logging.INFO)
+          interval = {{ $generali.loopInterval | default 120 }}
+          # run generali_check_status every 2 minutes
+          s = sched.scheduler(time.time, time.sleep)
+
+          def repeat_run(sc):
+              try:
+                  logging.info(
+                    "Success" if
+                    generali_check_status('/config/agency.ini#agency')
+                    else "Failed")
+              except Exception as e:
+                  logging.exception(e)
+              s.enter(interval, 1, repeat_run, (sc,))
+
+          s.enter(interval, 1, repeat_run, (s,))
+          s.run()
+      {{- end }}
       volumes:
       - name: config
         configMap:
