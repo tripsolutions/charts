@@ -676,8 +676,7 @@ smtpgate:
   imageVersion: v3.3.1-alpine
 
 b2b_defaults:
-  config: {}
-  config2:
+  config:
     cors: false
     etripPath: /var/www/localhost
     banned: []
