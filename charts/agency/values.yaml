@@ -66,6 +66,9 @@ agency:
   pnrConverter: null
     # public_key: null
     # private_key: null
+  stuba:
+    env: test
+    url: false # specify full URL to override env
   cors:
     # enable CORS for the websites (list clients)
     free: false
