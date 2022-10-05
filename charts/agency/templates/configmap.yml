@@ -113,8 +113,8 @@ data:
             {{- end }}
     {{ end }}
 
-    {{ with .Values.agency.stuba -}}
-    stuba.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
+    {{ with .Values.agency.stuba_api -}}
+    stuba_api.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
             http://api.stuba.com/RXLServices/ASMX/XmlService.asmx
             {{- else -}} 
             http://www.stubademo.com/RXLStagingServices/ASMX/XmlService.asmx
