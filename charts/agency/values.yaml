@@ -69,6 +69,9 @@ agency:
   stuba_api:
     env: test
     url: false # specify full URL to override env
+  travel_gate:
+    env: test
+    url: false # specify full URL to override env
   cors:
     # enable CORS for the websites (list clients)
     free: false

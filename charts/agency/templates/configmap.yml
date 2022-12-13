@@ -121,6 +121,10 @@ data:
             {{- end }}
     {{ end }}
 
+    {{ with .Values.agency.travel_gate -}}
+    travel_gate.url = https://api.travelgatex.com
+    {{ end }}
+
     {{ with .Values.agency.gate_e -}}
     gate_e.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
             https://www.gate-e.com/api/process.php
