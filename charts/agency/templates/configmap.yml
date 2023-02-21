@@ -133,6 +133,13 @@ data:
             {{- end }}
     {{ end }}
 
+    {{ with .Values.agency.e_factura -}}
+    e_factura.url = https://logincert.anaf.ro
+    e_factura.client_id = 60a99026bb28cfec0f249d6cb82c0023e996dd8240ebf463
+    e_factura.secret = 570fa2a60d0b9602765c0770859b33a24a2d83407b5a0023e996dd8240ebf463
+    e_factura.redirect_uri = https://staging.etrip-agency.ro/efacturaAuth
+    {{ end }}
+
     {{- if .Values.agency.companies.enabled}} 
     {{- if .Values.companies.enabled }}
     cumulus.companies_url = http://{{ include "companies.releaseName" . }}-api/api
