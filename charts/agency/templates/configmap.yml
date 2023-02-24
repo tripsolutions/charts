@@ -135,10 +135,10 @@ data:
 
     {{ with .Values.agency.e_factura -}}
       {{ if .enabled -}}
-        e_factura.url = {{ .url }}
-        e_factura.client_id = {{ .client_id }}
-        e_factura.secret = {{ .secret }}
-        e_factura.redirect_uri = {{ ternary "https" "http" (default $.Values.global.agency.tls $.Values.ingress.tls) -}} 
+    e_factura.url = {{ .url }}
+    e_factura.client_id = {{ .client_id }}
+    e_factura.secret = {{ .secret }}
+    e_factura.redirect_uri = {{ ternary "https" "http" (default $.Values.global.agency.tls $.Values.ingress.tls) -}} 
           :// {{- index (default $.Values.global.agency.admin.hostnames $.Values.ingress.hostnames) 0 -}} /efacturaAuth
       {{ end -}}
     {{ end }}
