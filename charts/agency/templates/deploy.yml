@@ -145,7 +145,7 @@ spec:
         {{- end }}
         {{- if .Values.agency.e_factura.enabled }}
         - name: AGENCY_EFACTURA_AUTH_URL
-          value: {{ .Values.agency.e_factura.url -}} /anaf-oauth2/v1/authorize
+          value: {{ .Values.agency.e_factura.auth_url -}} /anaf-oauth2/v1/authorize
         - name: AGENCY_EFACTURA_CLIENT_ID
           value: {{ .Values.agency.e_factura.client_id }}
         {{- end }}
