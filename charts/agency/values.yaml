@@ -74,7 +74,8 @@ agency:
     url: false # specify full URL to override env
   e_factura:
     enabled: false
-    url: https://logincert.anaf.ro
+    auth_url: https://logincert.anaf.ro
+    api_url: https://api.anaf.ro
     client_id: client_id
     client_secret: client_secret
   cors:
