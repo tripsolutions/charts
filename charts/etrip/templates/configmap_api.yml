@@ -13,7 +13,7 @@ data:
 
     [program:fpm]
     user = root
-    command = php-fpm8 -y /config/fpm.ini
+    command = php-fpm81 -y /config/fpm.ini
     autorestart = true
     startretries = 5
     stopwaitsecs = 15

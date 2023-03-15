@@ -165,8 +165,6 @@ spec:
         configMap:
           name: {{ .Release.Name }}-api-config
           items:
-          - key: etrip.json
-            path: etrip/config.json
           - key: etrip-nginx.conf
             path: etrip/nginx.conf
           - key: supervisor.conf
