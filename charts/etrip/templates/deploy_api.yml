@@ -42,7 +42,7 @@ spec:
           name: config
           subPath: etrip
         - mountPath: /etripConfig
-          name: etripConfig
+          name: etrip-config
           subPath: etrip
         - mountPath: /tmp/elogger
           name: elogger
@@ -173,7 +173,7 @@ spec:
             path: etrip/supervisor.conf
           - key: etrip-fpm.ini
             path: etrip/fpm.ini
-      - name: etripConfig
+      - name: etrip-config
         configMap:
           name: {{ .Release.Name }}-config
           items:
