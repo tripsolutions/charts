@@ -74,7 +74,9 @@ agency:
     url: false # specify full URL to override env
   e_factura:
     enabled: false
-    url: https://logincert.anaf.ro
+    auth_url: https://logincert.anaf.ro
+    api_url: https://api.anaf.ro
+    validation_url: https://webservicesp.anaf.ro/prod/FCTEL/rest/validare/FACT1
     client_id: client_id
     client_secret: client_secret
   cors:
