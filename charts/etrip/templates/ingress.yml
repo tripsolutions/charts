@@ -28,6 +28,22 @@ spec:
             port:
               name: api
       {{- end }}
+      {{- if $.Values.apiDeploy }}
+      - path: /ws.php
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $name }}-api
+            port:
+              name: http
+      - path: /json.php
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $name }}-api
+            port:
+              name: http
+      {{- end }}
       - path: /
         pathType: Prefix
         backend:

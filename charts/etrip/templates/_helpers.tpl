@@ -15,6 +15,15 @@ imagePullPolicy: {{ .pullPolicy }}
 {{- end -}}
 {{- end -}}
 
+{{- define "etripApiImage" -}}
+{{- with .Values.etrip.image -}}
+image: {{ .api.registry | default .registry -}} /
+    {{- .api.name | default .name -}} : 
+    {{- .api.tag | default .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+imagePullPolicy: {{ .pullPolicy }}
+{{- end -}}
+{{- end -}}
+
 {{- define "frontendsImage" -}}
 {{- with .Values.frontends.image -}}
 image: {{ .registry -}} /

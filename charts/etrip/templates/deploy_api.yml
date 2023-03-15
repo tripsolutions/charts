@@ -1,0 +1,184 @@
+{{ if .Values.apiDeploy  -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.replicas.api | default .Values.replicas.web }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      annotations:
+        checksum/apiConfig: {{ include (print $.Template.BasePath "/configmap_api.yml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
+    spec:
+      containers:
+      - name: etrip
+        {{- include "etripApiImage" . | nindent 8 }}
+        command: [ supervisord, -n, -c, /config/supervisor.conf]
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: etrip
+        - mountPath: /etripConfig
+          name: etripConfig
+          subPath: etrip
+        - mountPath: /tmp/elogger
+          name: elogger
+        env:
+        - name: DB_PASSWORD
+          {{- if .Values.db.use_operator }}
+          valueFrom:
+            secretKeyRef: 
+              name: etrip. {{- include "clusterName" . -}} .credentials
+              key: password
+          {{- else }}
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.db.custom_install.password.useSecret }}
+              name: {{ .Values.db.custom_install.password.fromSecret }}
+              key: {{ .Values.db.custom_install.password.fromSecretKey }}
+              {{- else }}
+              name: {{ .Release.Name }}-secrets
+              key: dbpassword
+              {{- end }}
+          {{- end }}
+        - name: ETRIP_CONFIG
+          value: /etripConfig
+        - name: ETRIP_DSN
+          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
+            {{- include "clusterName" . }}
+        {{- if and .Values.db.use_operator ( gt (int .Values.replicas.db) 1 ) }}
+        - name: ETRIP_DSN_RO
+          {{ if .Values.db.use_operator -}}
+          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
+            {{- include "clusterName" . }}-repl connect_timeout=1
+          {{- else -}}
+          value: sslmode=disable password=$(DB_PASSWORD) user= 
+            {{- .Values.db.custom_install.username }} dbname=
+            {{- .Values.db.custom_install.dbname}} host=
+            {{- .Values.db.custom_install.host }} port=
+            {{- .Values.db.custom_install.port }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.etrip.searchlogs.enabled }}
+        - name: SEARCHLOGS_DBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.etrip.searchlogs.is_operator }}
+              name: {{ printf "%s.%s.credentials" .Values.etrip.searchlogs.username .Values.etrip.searchlogs.host }}
+              key: password
+              {{- else }}
+              name: {{ .Values.etrip.searchlogs.password.fromSecret }}
+              key: {{ .Values.etrip.searchlogs.password.fromSecretKey }}
+              {{- end }}
+        - name: ETRIP_SEARCHLOGS_DSN
+          value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
+            {{- $.Values.etrip.searchlogs.username }} dbname=
+            {{- $.Values.etrip.searchlogs.dbname }} host=
+            {{- $.Values.etrip.searchlogs.host }} port=
+            {{- $.Values.etrip.searchlogs.port }}
+        - name: ETRIP_SEARCHLOGS_TABLE
+          value: {{ $.Values.etrip.searchlogs.table }}
+        {{- end }}
+        - name: ETRIP_LOGDIR
+          value: /tmp/elogger
+        - name: ETRIP_VERSION
+          value: {{ .Values.version | quote }}
+        {{ if .Values.smtpgate.enabled -}}
+        - name: ETRIP_SMTP_HOST
+          value: {{ .global.Release.Name }}-admin
+        {{ end -}}
+        resources:
+          {{- toYaml (.Values.resources.api | default .Values.resources.fpm) | nindent 10 }}
+        ports:
+        - containerPort: 80
+          name: etrip
+          protocol: TCP
+      {{- if .Values.elogger.enabled }}
+      - name: sendlogs
+        {{- with .Values.elogger.image }}
+        image: {{ .registry -}} / {{- .name -}} : 
+          {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+        imagePullPolicy: {{ .pullPolicy }}
+        {{ end -}}
+        env:
+        - name: ENV_CONFIG
+          value: "true"
+        - name: ELOGGER_DIR
+          value: /tmp/elogger
+        - name: ELOGGER_DBHOST
+          value: {{ .Values.elogger.db.host }}
+        - name: ELOGGER_DBNAME
+          value: {{ .Values.elogger.db.dbname }}
+        - name: ELOGGER_DBUSER
+          value: {{ .Values.elogger.db.username }}
+        - name: ELOGGER_DBPASS
+          valueFrom:
+            secretKeyRef: 
+              {{- if .Values.elogger.db.is_operator }}
+              name: {{ printf "%s.%s.credentials" .Values.elogger.db.username .Values.elogger.db.host }}
+              key: password
+              {{- else }}
+              name: {{ .Values.elogger.db.password.fromSecret }}
+              key: {{ .Values.elogger.db.password.fromSecretKey }}
+              {{- end }}
+        - name: ELOGGER_DBPORT
+          value: {{ .Values.elogger.db.port | quote }}
+        - name: ELOGGER_TABLE
+          value: {{ .Values.elogger.db.table }}
+        command:
+          - sh
+          - -c 
+          - |
+            while true; do
+              sendlogs
+              sleep 60
+            done
+        volumeMounts:
+        - mountPath: /tmp/elogger
+          name: elogger
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-api-config
+          items:
+          - key: etrip.json
+            path: etrip/config.json
+          - key: etrip-nginx.conf
+            path: etrip/nginx.conf
+          - key: supervisor.conf
+            path: etrip/supervisor.conf
+          - key: etrip-fpm.ini
+            path: etrip/fpm.ini
+      - name: etripConfig
+        configMap:
+          name: {{ .Release.Name }}-config
+          items:
+          - key: etrip.json
+            path: etrip/etrip.json
+      - name: elogger
+        emptyDir: {}
+{{- end -}}
