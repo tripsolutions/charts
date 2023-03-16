@@ -137,13 +137,13 @@ spec:
     metadata:
       labels:
         cronjob-name: refresh-db
-        {{- include "labels" . | nindent 8 }}
+        {{- include "selectorLabels" . | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
             cronjob-name: refresh-db
-            {{- include "labels" . | nindent 12 }}
+            {{- include "selectorLabels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           serviceAccountName: {{ .Release.Name }}-refresh-sa

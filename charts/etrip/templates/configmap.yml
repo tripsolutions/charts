@@ -9,7 +9,7 @@ data:
   etrip.json: |
     {{- toJson .Values.etrip.config | nindent 4 }}
   {{- range $key, $instance := .Values.b2b }}
-  {{- $config := mergeOverwrite $.Values.b2b_defaults.config $instance.config }}
+  {{- $config := mergeOverwrite (deepCopy $.Values.b2b_defaults.config) $instance.config }}
   {{- if $.Values.ingress.enabled }}
   {{- $b2bIngress := index $.Values.ingress.b2b $key }}
   {{- $config = $config | merge (dict "etripUrl" (print (
@@ -29,7 +29,7 @@ data:
 
     [program:fpm]
     user = root
-    command = php-fpm8 -y /config/fpm.ini
+    command = php-fpm81 -y /config/fpm.ini
     autorestart = true
     startretries = 5
     stopwaitsecs = 15
@@ -227,7 +227,7 @@ data:
     {{- end }}
 
     {{- range $key, $instance := .Values.b2b }}
-    {{ $val := mergeOverwrite $.Values.b2b_defaults.fpm $instance.fpm }}
+    {{ $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
     {{- if not ($val.disabled) }}
 
     [fpm-b2b-{{$key}}]

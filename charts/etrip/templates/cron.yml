@@ -110,7 +110,7 @@ spec:
               - |
                 {{- .cron.command | toString | nindent 16 }}
                 touch /tmp/elogger/elogger.done
-          {{- if and .global.Values.elogger.enabled (not .nologs ) }}
+          {{- if and .global.Values.elogger.enabled (not .cron.nologs ) }}
           - name: sendlogs
             {{- with .global.Values.elogger.image }}
             image: {{ .registry -}} / {{- .name -}} : 
@@ -177,7 +177,7 @@ spec:
 ---
 {{- end }}
 {{- range $b2bkey, $b2bInstance := .Values.b2b -}}
-{{- $b2bInstance = mergeOverwrite $.Values.b2b_defaults $b2bInstance }}
+{{- $b2bInstance = mergeOverwrite (deepCopy $.Values.b2b_defaults) $b2bInstance }}
 {{- if not $b2bInstance.cron_disable }}
 {{- range $b2bInstance.cron -}}
 {{- include "etripCronjob" (dict "cron" . "global" $ "b2bKey" $b2bkey ) }}
