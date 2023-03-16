@@ -104,7 +104,7 @@ data:
           server_name localhost;
           root /var/www/localhost/webapp;
           location @404 { internal; }
-          index index.php;
+          index index.php index.html;
           
           {{- if ne (len .Values.etrip.passwords) 0 }}
           set $auth_realm "etrip backend";
@@ -129,21 +129,22 @@ data:
           }
 
           location / {
+            location /api {
+              try_files $uri /apiv2/index.php$is_args$args;
+            }
             location ~ \.php {
                 error_page 418 = @slow;
                 fastcgi_pass webapp;
 
-                {{- if ne (len .Values.etrip.passwords) 0 }}
                 location ~ ^/(wscsv|file)\.php {
                     auth_basic off;
                     fastcgi_pass webapp;
                 }
 
-                location ~ ^/(ws|json)\.php {
+                location ~ ^/(ws|json|apiv2/index)\.php {
                     auth_basic off;
                     fastcgi_pass $webservice;
                 }
-                {{- end }}
 
                 if ($slow = 1) {
                     return 418;
