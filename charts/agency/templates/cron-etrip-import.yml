@@ -13,13 +13,13 @@ spec:
     metadata:
       labels:
         cronjob-name: etrip-import
-        {{- include "agency.labels" . | nindent 8 }}
+        {{- include "agency.selectorLabels" . | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
             cronjob-name: etrip-import
-            {{- include "agency.labels" . | nindent 12 }}
+            {{- include "agency.selectorLabels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:

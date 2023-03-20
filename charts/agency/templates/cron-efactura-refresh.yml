@@ -1,29 +1,29 @@
-{{ if .Values.agency.cron.exchangerate.enabled -}}
+{{ if .Values.agency.e_factura.enabled -}}
 kind: CronJob
 apiVersion: batch/v1beta1
 metadata:
-  name: {{ include "agency.releaseName" . }}-exchangerate
+  name: {{ include "agency.releaseName" . }}-efactura-refresh
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "agency.labels" . | nindent 4 }}
 spec:
-  schedule: {{ .Values.agency.cron.exchangerate.schedule | quote }}
+  schedule: {{ .Values.agency.cron.e_factura.schedule | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
     metadata:
       labels:
-        cronjob-name: exchangerate
+        cronjob-name: efactura-refresh
         {{- include "agency.selectorLabels" . | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
-            cronjob-name: exchangerate
+            cronjob-name: efactura-refresh
             {{- include "agency.selectorLabels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:
-          - name: cron-exchangerate
+          - name: cron-efactura-refresh
             image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             securityContext:
@@ -46,17 +46,9 @@ spec:
             args: 
             - -c 
             - |
-              import agency.tasks
-              {{- if eq .Values.agency.cron.exchangerate.source "bnr" }}
-              agency.tasks.update_bnr_exchange('/config/agency.ini#agency')
-              {{- else if eq .Values.agency.cron.exchangerate.source "floatrates" }}
-              agency.tasks.update_floatrates_exchange('/config/agency.ini#agency',
-                currencies=[
-                  {{- range .Values.agency.cron.exchangerate.currencies -}}
-                  "{{.}}",
-                  {{- end -}}
-                ])
-              {{- end }}
+              from agency.tasks import e_factura_refresh_tokens
+              from datetime import timedelta
+              e_factura_refresh_tokens ('/config/agency.ini#agency')
             resources:
               {{- toYaml .Values.resources.cron | nindent 14 }}
           volumes:
