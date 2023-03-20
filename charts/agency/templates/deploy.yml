@@ -148,6 +148,9 @@ spec:
           value: {{ .Values.agency.e_factura.auth_url -}} /anaf-oauth2/v1/authorize
         - name: AGENCY_EFACTURA_CLIENT_ID
           value: {{ .Values.agency.e_factura.client_id }}
+        - name: AGENCY_EFACTURA_REDIRECT_URL
+          value: {{ ternary "https" "http" (default $.Values.global.agency.tls $.Values.ingress.tls) -}} 
+          :// {{- index (default $.Values.global.agency.admin.hostnames $.Values.ingress.hostnames) 0 -}} /efacturaAuth
         {{- end }}
         - name: NGINX_LISTEN
           value: "*:8080"
@@ -196,8 +199,10 @@ spec:
         resources:
           {{- toYaml .Values.resources.web | nindent 10 }}
       {{- end }}
-      {{- with $generali := .Values.agency.generali }}
-      - name: generali-loop
+      {{- $generali := .Values.agency.generali }}
+      {{- $efactura := .Values.agency.e_factura }}
+      {{- if or $generali $efactura }}
+      - name: loop
         image: {{ $.Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" $ }}
         imagePullPolicy: {{ $.Values.image.pullPolicy }}
         securityContext:
@@ -217,19 +222,20 @@ spec:
         - name: CONFIG_PATH
           value: /config/agency.ini
         resources:
-          {{- $generali.loopResources | default $.Values.resources.cron | toYaml | nindent 10 }}
+          {{- .Values.resources.loop | default $.Values.resources.cron | toYaml | nindent 10 }}
         command: [ python3 ]
         args:
         - -c
         - |
-          from agency.tasks import generali_check_status
           import sched, time, logging
           logging.basicConfig(level=logging.INFO)
-          interval = {{ $generali.loopInterval | default 120 }}
-          # run generali_check_status every 2 minutes
           s = sched.scheduler(time.time, time.sleep)
 
-          def repeat_run(sc):
+          {{- if $generali }}
+          from agency.tasks import generali_check_status
+          generali_interval = {{ $generali.loopInterval | default 120 }}
+
+          def generali_repeat_run(sc):
               try:
                   logging.info(
                     "Success" if
@@ -237,9 +243,25 @@ spec:
                     else "Failed")
               except Exception as e:
                   logging.exception(e)
-              s.enter(interval, 1, repeat_run, (sc,))
+              s.enter(generali_interval, 1, generali_repeat_run, (sc,))
 
-          s.enter(interval, 1, repeat_run, (s,))
+          s.enter(generali_interval, 1, generali_repeat_run, (s,))
+          {{- end }}
+
+          {{- if $efactura.enabled }}
+          from agency.tasks import e_factura_check_invoice
+          efactura_interval = {{ $efactura.loopInterval | default 120 }}
+
+          def efactura_repeat_run(sc):
+            try:
+              e_factura_check_invoice('/config/agency.ini#agency')
+            except Exception as e:
+              logging.exception(e)
+            s.enter(efactura_interval, 1, efactura_repeat_run, (sc,))
+          
+          s.enter(efactura_interval, 1, efactura_repeat_run, (s,))
+          {{- end }}
+          
           s.run()
       {{- end }}
       volumes:
