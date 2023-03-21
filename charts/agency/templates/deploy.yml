@@ -201,7 +201,7 @@ spec:
       {{- end }}
       {{- $generali := .Values.agency.generali }}
       {{- $efactura := .Values.agency.e_factura }}
-      {{- if or $generali $efactura }}
+      {{- if or $generali $efactura.enabled }}
       - name: loop
         image: {{ $.Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" $ }}
         imagePullPolicy: {{ $.Values.image.pullPolicy }}
