@@ -1,6 +1,6 @@
 {{ if .Values.agency.cron.etripImport.enabled -}}
 kind: CronJob
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 metadata:
   name: {{ include "agency.releaseName" . }}-etrip-import
   namespace: {{ .Release.Namespace }}
