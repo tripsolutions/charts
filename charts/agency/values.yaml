@@ -81,6 +81,12 @@ agency:
     validation_url: https://webservicesp.anaf.ro/prod/FCTEL/rest/validare/FACT1
     client_id: client_id
     client_secret: client_secret
+  travelify:
+    enabled: false
+    url: https://api.travelify.io
+    application_id: NULL
+    private_key: NULL
+
   cors:
     # enable CORS for the websites (list clients)
     free: false
