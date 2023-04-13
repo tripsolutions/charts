@@ -46,6 +46,13 @@ data:
     {{- end }}
     {{- end }}
 
+    {{- if or .Values.companies.agency.api .Values.companies.agency.frontend }}
+    agency_api = {{ .Values.companies.agency.api | default ( print .Values.companies.agency.frontend "/api" ) }}
+    {{- else }}{{ if .Values.global }}{{ if .Values.global.agency }}
+    agency_api = {{ ternary "https" "http" .Values.global.agency.tls  -}} 
+            :// {{- index .Values.global.agency.admin.hostnames 0 -}} /api
+    {{- end }}{{ end }}{{ end }}
+
     cache.regions = default, short_term, binary
     cache.default.type = memory
     cache.default.expire = 60

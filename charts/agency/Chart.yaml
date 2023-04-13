@@ -2,9 +2,9 @@ apiVersion: v2
 name: agency
 description: eTrip Agency Helm chart
 type: application
-version: 0.4.30
+version: 0.4.31
 appVersion: 2.8.0
 dependencies:
 - name: companies
-  version: "0.1.8"
+  version: "0.1.9"
   condition: companies.enabled
