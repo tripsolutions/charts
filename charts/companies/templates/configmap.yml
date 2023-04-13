@@ -39,6 +39,13 @@ data:
     {{ end }}
     shared_secret = ${SHARED_SECRET}
 
+    {{- with .Values.companies.auto_invoices }}
+    {{- if .enabled }}
+    invoices_issuer_user = {{ .user_id }}
+    invoices_issuer = {{ .company }}
+    {{- end }}
+    {{- end }}
+
     cache.regions = default, short_term, binary
     cache.default.type = memory
     cache.default.expire = 60

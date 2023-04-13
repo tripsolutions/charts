@@ -1,0 +1,63 @@
+{{- if .Values.companies.auto_invoices.enabled }}
+kind: CronJob
+apiVersion: batch/v1
+metadata:
+  name: {{ include "companies.releaseName" . }}-invoices
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "companies.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.companies.auto_invoices.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: invoices
+        {{- include "agency.selectorLabels" . | nindent 8 }}
+    spec:
+      template:
+        metadata:
+          labels:
+            cronjob-name: invoices
+            {{- include "agency.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: cron-invoices
+            image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "companies.serverImageTag" . }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command: [ issue_agency_invoices, /config/config.ini ]
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsUser: 100
+              runAsGroup: 101
+            volumeMounts:
+            - mountPath: /config
+              name: config
+              subPath: app
+            env:
+            - name: CONFIG_PATH
+              value: /config/config.ini
+            - name: PG_PASS
+              valueFrom:
+                secretKeyRef: 
+                  name: companies.{{ include "companies.clusterName" . }}.credentials
+                  key: password
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "companies.releaseName" . }}-secret
+                  key: auth_pkey
+            - name: SHARED_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "companies.releaseName" . }}-secret
+                  key: shared_secret
+          volumes:
+          - name: config
+            configMap:
+              name: {{ include "companies.releaseName" . }}-config
+              items:
+              - key: config.ini
+                path: app/config.ini
+{{- end }}

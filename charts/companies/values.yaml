@@ -44,6 +44,13 @@ companies:
     websites: []
     # urls:
     #  - https://example.com/
+  
+  auto_invoices:
+    enabled: false
+    company: null
+    user_id: null
+    # cron schedule: daily at 1:30am
+    schedule: "30 1 * * *"
 
 db:
   teamId: companies
