@@ -130,7 +130,7 @@ data:
       }
 
       server {
-          listen *:8000;
+          listen *:8080;
           server_name localhost;
           root /var/www/localhost/webapp;
           location @404 { internal; }
@@ -313,7 +313,7 @@ data:
 
       {{- range $idx, $key := .Values.frontends.endpoints }}
       server {
-        listen *:{{ add 8002 $idx }};
+        listen *:{{ add 8082 $idx }};
         server_name ~^.*$;
 
         root /frontends/{{ $key }};
