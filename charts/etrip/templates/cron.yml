@@ -12,8 +12,16 @@ spec:
   failedJobsHistoryLimit: {{ .cron.failedHistory | default 1 }}
   concurrencyPolicy: Forbid
   jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: { .cron.name }
+        {{- include "selectorLabels" . | nindent 8 }}
     spec:
       template:
+        metadata:
+          labels:
+            cronjob-name: { .cron.name }
+            {{- include "selectorLabels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:

@@ -9,7 +9,7 @@ metadata:
 spec:
   ports:
   - name: etrip
-    port: 80
+    port: 8000
     targetPort: etrip
   {{- $port := 6000 -}}
   {{- range $idx, $instance := .Values.b2b }}
@@ -31,7 +31,7 @@ spec:
   {{- if .Values.frontends.enabled }}
   {{- range $idx, $key := .Values.frontends.endpoints }}
   - name: frontend-{{ $key }}
-    port: {{ add 82 $idx }}
+    port: {{ add 8002 $idx }}
     targetPort: frontend-{{ $key }}
   {{- end }}
   {{- end }}

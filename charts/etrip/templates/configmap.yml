@@ -38,7 +38,7 @@ data:
     serverurl=unix:///tmp/supervisor.sock
 
     [program:fpm]
-    command = php-fpm -y /config/fpm.conf
+    command = php-fpm -y /config/fpm.ini
     autorestart = true
     startretries = 5
     stopwaitsecs = 15
@@ -130,7 +130,7 @@ data:
       }
 
       server {
-          listen *:80;
+          listen *:8000;
           server_name localhost;
           root /var/www/localhost/webapp;
           location @404 { internal; }
@@ -313,7 +313,7 @@ data:
 
       {{- range $idx, $key := .Values.frontends.endpoints }}
       server {
-        listen *:{{ add 82 $idx }};
+        listen *:{{ add 8002 $idx }};
         server_name ~^.*$;
 
         root /frontends/{{ $key }};
