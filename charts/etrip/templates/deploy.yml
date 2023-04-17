@@ -221,61 +221,6 @@ spec:
         {{- end }}
         command: [ nginx, -c, /config/nginx.conf ]
       {{- end }}
-      {{- if .Values.api.enabled }}
-      - name: api
-        {{- with .Values.api.image }}
-        image: {{ .registry -}} / {{- .name -}} : 
-          {{- .tag }}
-        imagePullPolicy: {{ .pullPolicy }}
-        {{- end }}
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: api
-        ports:
-        - containerPort: 6543
-          name: api
-          protocol: TCP
-        env:
-        - name: PG_PASS
-          {{- if .Values.db.use_operator }}
-          valueFrom:
-            secretKeyRef: 
-              name: etrip. {{- include "clusterName" . -}} .credentials
-              key: password
-          {{- else }}
-          valueFrom:
-            secretKeyRef:
-              {{- if .Values.db.custom_install.password.useSecret }}
-              name: {{ .Values.db.custom_install.password.fromSecret }}
-              key: {{ .Values.db.custom_install.password.fromSecretKey }}
-              {{- else }}
-              name: {{ .Release.Name }}-secrets
-              key: dbpassword
-              {{- end }}
-          {{- end }}
-        - name: PG_USER
-          {{- if .Values.db.use_operator }}
-          value: etrip
-          {{- else }}
-          value: {{ .Values.db.custom_install.username -}}
-          {{- end }}
-        - name: PG_HOST
-          {{ if .Values.db.use_operator -}}
-          value: {{ include "clusterName" . }}
-          {{- else }}
-          value: {{ .Values.db.custom_install.host -}} : 
-            {{- .Values.db.custom_install.port }}
-          {{ end }}
-        - name: PG_DBNAME
-          {{ if .Values.db.use_operator -}}
-          value: etrip
-          {{- else -}}
-          value: {{ .Values.db.custom_install.dbname -}}
-          {{- end }}
-        - name: CONFIG_PATH
-          value: /config/api.ini
-      {{- end }}
       {{- if .Values.elogger.enabled }}
       - name: sendlogs
         {{- with .Values.elogger.image }}
@@ -373,10 +318,6 @@ spec:
           {{- if .Values.frontends.enabled }}
           - key: frontends-nginx.conf
             path: frontends/nginx.conf
-          {{- end }}
-          {{- if .Values.api.enabled }}
-          - key: api.ini
-            path: api/api.ini
           {{- end }}
           {{ range $b2bkey, $b2b := .Values.b2b}}
           - key: b2b-{{$b2bkey}}.json

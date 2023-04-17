@@ -25,34 +25,53 @@ data:
   {{- end }}
   supervisor.conf: |
     [supervisord]
-    user=root
 
     [program:fpm]
-    user = root
-    command = php-fpm81 -y /config/fpm.ini
+    command = php-fpm -y /config/fpm.conf
     autorestart = true
     startretries = 5
     stopwaitsecs = 15
+    stdout_logfile=/dev/fd/1
+    stdout_logfile_maxbytes=0
+    stderr_logfile = /dev/fd/2
+    stderr_logfile_maxbytes = 0
 
     [program:nginx]
     command = nginx -c /config/nginx.conf
     autorestart = true
     startretires = 5
     stopwaitsecs = 15
+    stdout_logfile=/dev/fd/1
+    stdout_logfile_maxbytes=0
+    stderr_logfile = /dev/fd/2
+    stderr_logfile_maxbytes = 0
   etrip-nginx.conf: |
-    user nginx;
     worker_processes {{ .Values.etrip.nginx.workers | default 1 }};
-    error_log /dev/stderr warn;
+    pcre_jit on;
+    error_log /dev/stderr;
+    pid /tmp/nginx.pid;
+    include /etc/nginx/modules-enabled/*.conf;
     daemon off;
-    events {}
+    events {
+      worker_connections 512;
+    }
+
     http {
       include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
       server_tokens off;
+      client_max_body_size 20m;
+      keepalive_timeout 65;
       sendfile on;
       tcp_nopush on;
-      access_log /proc/1/fd/1 combined;
+
+      access_log /dev/stdout;
+      error_log /dev/stderr;
+
       set_real_ip_from 0.0.0.0/0;
       real_ip_header X-Forwarded-For;
+      real_ip_recursive on;
 
       {{- if ne (len .Values.etrip.passwords) 0 }}
       geo $trusted { 
@@ -186,6 +205,12 @@ data:
           }
       }
       {{- end }}
+
+      client_body_temp_path /tmp/client_body;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
     }
   {{- if ne (len .Values.etrip.passwords) 0 }}
   htpasswd: |
@@ -196,14 +221,13 @@ data:
   etrip-fpm.ini: |
     [global]
     daemonize = no
+    error_log = /dev/stderr
 
     {{- range $key, $val := .Values.etrip.fpm }}
     {{- if not ($val.disabled) }}
 
     [fpm-{{$key}}]
     listen = {{ $val.port }}
-    user = nginx
-    group = nginx
     pm = {{ $val.mode | default "dynamic" }}
     pm.max_children = {{ $val.max }}
     pm.start_servers = {{ $val.start }}
@@ -233,8 +257,6 @@ data:
 
     [fpm-b2b-{{$key}}]
     listen = {{ $val.port }}
-    user = nginx
-    group = nginx
     pm = {{ $val.mode | default "dynamic" }}
     pm.max_children = {{ $val.max }}
     pm.start_servers = {{ $val.start }}
@@ -256,18 +278,21 @@ data:
     {{- end }}
   {{- if .Values.frontends.enabled }}
   frontends-nginx.conf: |
-    user nginx;
     worker_processes 1;
-    error_log /dev/stderr warn;
-    pid /var/run/nginx.pid;
+    error_log /dev/stderr;
+    pid /tmp/nginx.pid;
     daemon off;
     events {
-      worker_connections  1024;
+      worker_connections 512;
     }
 
     http {
       include /etc/nginx/mime.types;
-      access_log  /dev/stdout combined;
+      default_type application/octet-stream;
+
+      access_log  /dev/stdout;
+      error_log  /dev/stderr;
+
       sendfile        on;
       tcp_nopush     on;
 
@@ -301,62 +326,11 @@ data:
         }
       }
       {{- end }}
+
+      client_body_temp_path /tmp/client_body;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
     }
   {{- end }}
-  {{- if .Values.api.enabled }}
-  api.ini: |
-    [app:main]
-    use = egg:etrip
-
-    pyramid.reload_templates = false
-    pyramid.debug_authorization = false
-    pyramid.debug_notfound = false
-    pyramid.debug_routematch = false
-    pyramid.default_locale_name = en
-
-    sqlalchemy.url = postgresql+psycopg2://$PG_USER:$PG_PASS@$PG_HOST/$PG_DBNAME
-    retry.attempts = 3
-
-    [pshell]
-    setup = etrip.pshell.setup
-
-    [alembic]
-    script_location = %(here)s/alembic
-    file_template = %%(year)d%%(month).2d%%(day).2d_%%(rev)s
-
-    [server:main]
-    use = egg:waitress#main
-    listen = 0.0.0.0:6543
-
-    [loggers]
-    keys = root, etrip, sqlalchemy
-
-    [handlers]
-    keys = console
-
-    [formatters]
-    keys = generic
-
-    [logger_root]
-    level = INFO
-    handlers = console
-
-    [logger_etrip]
-    level = DEBUG
-    handlers =
-    qualname = etrip
-
-    [logger_sqlalchemy]
-    level = WARN
-    handlers =
-    qualname = sqlalchemy.engine
-
-    [handler_console]
-    class = StreamHandler
-    args = (sys.stderr,)
-    level = NOTSET
-    formatter = generic
-
-    [formatter_generic]
-    format = %(asctime)s %(levelname)-5.5s [%(name)s:%(lineno)s][%(threadName)s] %(message)s
-  {{- end}}

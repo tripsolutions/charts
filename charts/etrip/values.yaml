@@ -797,16 +797,9 @@ frontends:
     tag: latest
   
   # relates to endpoints 
-  endpoints:
-    - frontend1
-
-api:
-  enabled: false
-  image:
-    pullPolicy: IfNotPresent
-    registry: eu.gcr.io/tripsol
-    name: etrip-py
-    tag: latest
+  endpoints: []
+  # eg:
+  # - frontend1
 
 cron: []
 # template below:
