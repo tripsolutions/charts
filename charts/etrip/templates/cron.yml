@@ -112,7 +112,7 @@ spec:
             resources:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-            args: 
+            command: 
               - /bin/sh
               - -c
               - |
