@@ -15,13 +15,13 @@ spec:
     metadata:
       labels:
         cronjob-name: { .cron.name }
-        {{- include "selectorLabels" . | nindent 8 }}
+        {{- include "selectorLabels" .global | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
             cronjob-name: { .cron.name }
-            {{- include "selectorLabels" . | nindent 12 }}
+            {{- include "selectorLabels" .global | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:
