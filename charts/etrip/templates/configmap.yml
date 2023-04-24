@@ -276,6 +276,10 @@ data:
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
+    {{- if $.Values.etrip.use_redis }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
     php_value[{{$pkey}}] = {{$pval}}
