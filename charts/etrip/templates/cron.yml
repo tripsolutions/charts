@@ -106,7 +106,7 @@ spec:
               value: /tmp/elogger
             {{- if .global.Values.smtpgate.enabled }}
             - name: ETRIP_SMTP_HOST
-              value: {{ .global.Release.Name }}-admin
+              value: {{ .global.Release.Name }}-service
             {{- end }}
             {{- with .cron.resources }}
             resources:
