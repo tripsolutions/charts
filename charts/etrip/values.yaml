@@ -1,7 +1,6 @@
 replicas:
   web: 1
   db: 1
-  api: 1
 
 version: 4.0.66
 
@@ -26,17 +25,11 @@ ingress:
 #     external-dns.alpha.kubernetes.io/hostname: etrip-install-name.dyn.tripsolutions.co.uk
 
 etrip:
-  apiDeploy: false
   image:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol  
     name: etrip
     tag: null
-    api:
-      pullPolicy: null
-      registry: null  
-      name: null
-      tag: pr88
   use_redis: true
   phpValues: &phpValues
     session.gc_maxlifetime: 14400
@@ -791,6 +784,7 @@ b2b_defaults:
     high: 10
     phpValues:
       <<: *phpValues
+
 frontends:
   # old style frontends
   enabled: false
@@ -913,7 +907,6 @@ resources:
     requests:
       cpu: 100m
       memory: 50Mi
-  api: null
   cron:
     limits:
       cpu: "2"

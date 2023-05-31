@@ -291,34 +291,6 @@ data:
     env[B2B_CONFIG] = /config/b2b-{{$key}}.json
     {{- end }}
     {{- end }}
-
-    {{- range $key, $instance := .Values.b2b }}
-    {{ $val := mergeOverwrite $.Values.b2b_defaults.fpm $instance.fpm }}
-    {{- if not ($val.disabled) }}
-
-    [fpm-b2b-{{$key}}]
-    listen = {{ $val.port }}
-    user = nginx
-    group = nginx
-    pm = {{ $val.mode | default "dynamic" }}
-    pm.max_children = {{ $val.max }}
-    pm.start_servers = {{ $val.start }}
-    pm.min_spare_servers = {{ $val.low }}
-    pm.max_spare_servers = {{ $val.high }}
-    ping.path = /ping
-    request_terminate_timeout = 300
-    clear_env = no
-    {{- with $val.phpValues -}}
-    {{- range $pkey, $pval := . }}
-    php_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    {{- with $val.phpAdminValues -}}
-    {{- range $pkey, $pval := . }}
-    php_admin_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    env[B2B_CONFIG] = /config/b2b-{{$key}}.json
-    {{- end }}
-    {{- end }}
   {{- if .Values.frontends.enabled }}
   frontends-nginx.conf: |
     worker_processes 1;
