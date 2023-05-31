@@ -783,6 +783,7 @@ b2b_defaults:
     registry: eu.gcr.io/tripsol
     name: etrip-b2b
     tag: latest
+  
   fpm:
     max: 16
     start: 5
@@ -802,16 +803,9 @@ frontends:
     tag: latest
   
   # relates to endpoints 
-  endpoints:
-    - frontend1
-
-api:
-  enabled: false
-  image:
-    pullPolicy: IfNotPresent
-    registry: eu.gcr.io/tripsol
-    name: etrip-py
-    tag: latest
+  endpoints: []
+  # eg:
+  # - frontend1
 
 cron: []
 # template below:
@@ -867,18 +861,18 @@ db:
       extraQueries:
         pg_replication:
           query: |-
-            SELECT 
-              CASE WHEN pg_is_in_recovery() 
+            SELECT
+              CASE WHEN pg_is_in_recovery()
               THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
-                  pg_last_xact_replay_timestamp()) 
+                pg_last_xact_replay_timestamp())
               ELSE NULL END AS lag,
               pg_wal_lsn_diff(
                 CASE WHEN pg_is_in_recovery()
-                THEN pg_last_wal_replay_lsn() 
+                THEN pg_last_wal_replay_lsn()
                 ELSE pg_current_wal_lsn() END,
                 '0/0') AS current_lsn;
           metrics:
-          - lag: 
+          - lag:
               usage: GAUGE
               description: Replication lag behind master in seconds
           - current_lsn:

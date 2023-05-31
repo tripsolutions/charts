@@ -1,21 +1,27 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-admin
+  name: {{ .Release.Name }}-service
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "labels" . | nindent 4 }}
     app.kubernetes.io/component: web
 spec:
   ports:
-  - name: admin
-    port: 80
-    targetPort: admin
+  - name: etrip
+    port: 8080
+    targetPort: etrip
   {{- $port := 6000 -}}
   {{- range $idx, $instance := .Values.b2b }}
   - name: b2b-{{ $idx }}
     port: {{ $port }}{{ $port = add $port 1 }}
     targetPort: b2b-{{ $idx }}
+  {{- end }}
+{{- $port := 5000 -}}
+  {{- range $idx, $instance := .Values.b2b }}
+  - name: b2b-server-{{ $idx }}
+    port: {{ $port }}{{ $port = add $port 1 }}
+    targetPort: b2b-server-{{ $idx }}
   {{- end }}
   {{- if .Values.smtpgate.enabled }}
   - name: smtp
@@ -25,14 +31,9 @@ spec:
   {{- if .Values.frontends.enabled }}
   {{- range $idx, $key := .Values.frontends.endpoints }}
   - name: frontend-{{ $key }}
-    port: {{ add 82 $idx }}
+    port: {{ add 8082 $idx }}
     targetPort: frontend-{{ $key }}
   {{- end }}
-  {{- end }}
-  {{- if .Values.api.enabled }}
-  - name: api
-    port: 6543
-    targetPort: api
   {{- end }}
   selector:
     {{- include "selectorLabels" . | nindent 4 }}

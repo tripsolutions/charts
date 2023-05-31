@@ -19,38 +19,13 @@ spec:
   - host: {{ . | quote }}
     http:
       paths:
-      {{- if $.Values.api.enabled }}
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ $name }}-admin
-            port:
-              name: api
-      {{- end }}
-      {{- if $.Values.apiDeploy }}
-      - path: /ws.php
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ $name }}-api
-            port:
-              name: http
-      - path: /json.php
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ $name }}-api
-            port:
-              name: http
-      {{- end }}
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ $name }}-admin
+            name: {{ $name }}-service
             port:
-              name: admin
+              name: etrip
   {{- end }}{{ end }}
   {{- range $key, $instance := .Values.b2b }}
   {{- $b2bIngress := index $.Values.ingress.b2b $key -}}
@@ -58,12 +33,19 @@ spec:
   - host: {{ . | quote }}
     http:
       paths:
+      - path: /server
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $name }}-service
+            port:
+              name: b2b-server-{{ $key }}
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ $name }}-admin
-            port:
+            name: {{ $name }}-service
+            port: 
               name: b2b-{{ $key }}
   {{- end }}{{ end }}
   {{- if .Values.frontends.enabled }}
@@ -76,8 +58,8 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: {{ $name }}-admin
-            port:
+            name: {{ $name }}-service
+            port: 
               name: frontend-{{ $key }}
   {{- end}}{{ end }}{{ end }}
   {{- if .Values.ingress.tls }}

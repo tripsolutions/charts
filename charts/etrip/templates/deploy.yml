@@ -28,7 +28,7 @@ spec:
       initContainers:
       - name: migrations
         {{- include "etripImage" . | nindent 8 }}
-        args: [ /var/www/localhost/migrate ]
+        command: [ /var/www/localhost/migrate ]
         volumeMounts:
         - mountPath: /config
           name: config
@@ -84,15 +84,15 @@ spec:
           - cp -r /frontends/* /dest/
       {{- end}}
       containers:
-      - name: fpm
+      - name: etrip
+        command: [ supervisord, -n, -c, /config/supervisor.conf ]
         {{- include "etripImage" . | nindent 8 }}
-        args: [ php-fpm5, -y, /config/fpm.ini ]
-        # livenessProbe:
-        #   httpGet:
-        #     path: /ping
-        #     port: 80
-        #   initialDelaySeconds: 5
-        #   periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
         volumeMounts:
         - mountPath: /config
           name: config
@@ -136,27 +136,15 @@ spec:
           {{- end }}
         {{- if and .Values.db.use_operator ( gt (int .Values.replicas.db) 1 ) }}
         - name: ETRIP_DSN_RO
-          {{ if .Values.db.use_operator -}}
           value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
             {{- include "clusterName" . }}-repl connect_timeout=1
-          {{- else -}}
-          value: sslmode=disable password=$(DB_PASSWORD) user= 
-            {{- .Values.db.custom_install.username }} dbname=
-            {{- .Values.db.custom_install.dbname}} host=
-            {{- .Values.db.custom_install.host }} port=
-            {{- .Values.db.custom_install.port }}
-          {{- end }}
         {{- end }}
         {{- if .Values.etrip.use_redis }}
-        - name: PHP_SAVE_HANDLER
-          value: redis
         - name: REDIS_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-secrets
               key: session
-        - name: PHP_SAVE_PATH
-          value: tcp://{{ .Release.Name }}-redis:6379?auth=$(REDIS_SECRET)
         {{- end }}
         {{- if $.Values.etrip.searchlogs.enabled }}
         - name: SEARCHLOGS_DBPASSWORD
@@ -186,40 +174,18 @@ spec:
         - name: ETRIP_SMTP_HOST
           value: localhost
         {{ end -}}
+        ports:
+        - containerPort: 8080
+          name: etrip
+          protocol: TCP
+        {{ $port := 5000 }}
+        {{- range $key, $instance := .Values.b2b }}
+        - containerPort: {{ $port }}{{ $port = add $port 1 }}
+          name: b2b-server-{{ $key }}
+          protocol: TCP
+        {{- end }}
         resources:
           {{- toYaml .Values.resources.fpm | nindent 10 }}
-      - name: admin
-        {{- include "etripImage" . | nindent 8 }}
-        args: [ nginx ]
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: etrip
-        env:
-        - name: FPM_TARGET_WEBAPP
-          value: localhost:{{ .Values.etrip.fpm.main.port }}
-        - name: FPM_TARGET_WS
-          value: localhost:{{ .Values.etrip.fpm.ws.port }}
-        - name: FPM_TARGET_WS_PRIO
-          value: localhost:{{ .Values.etrip.fpm.ws_prio.port }}
-        - name: FPM_TARGET_SLOW
-          value: localhost:{{ .Values.etrip.fpm.slow.port }}
-        - name: NGINX_PORT
-          value: "80"
-        - name: ETRIP_CONFIG
-          value: /config
-        - name: ETRIP_PASSWD
-          value: /config
-        # this is wrong in etrip's docker image, will fix but for now patching
-        # from the chart instead
-        - name: PHP_ERROR_REPORTING
-          value: "22527"
-        ports:
-        - containerPort: 80
-          name: admin
-          protocol: TCP
-        resources:
-          {{- toYaml .Values.resources.web | nindent 10 }}
       {{- $port := 6000 }}
       {{- range $b2bidx, $b2b := .Values.b2b }}
       - name: b2b-{{ $b2bidx }}
@@ -249,66 +215,11 @@ spec:
           name: frontends
         ports:
         {{- range $idx, $key := .Values.frontends.endpoints }}
-        - containerPort: {{ add 82 $idx }}
+        - containerPort: {{ add 8082 $idx }}
           name: frontend-{{ $key }}
           protocol: TCP
         {{- end }}
         command: [ nginx, -c, /config/nginx.conf ]
-      {{- end }}
-      {{- if .Values.api.enabled }}
-      - name: api
-        {{- with .Values.api.image }}
-        image: {{ .registry -}} / {{- .name -}} : 
-          {{- .tag }}
-        imagePullPolicy: {{ .pullPolicy }}
-        {{- end }}
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: api
-        ports:
-        - containerPort: 6543
-          name: api
-          protocol: TCP
-        env:
-        - name: PG_PASS
-          {{- if .Values.db.use_operator }}
-          valueFrom:
-            secretKeyRef: 
-              name: etrip. {{- include "clusterName" . -}} .credentials
-              key: password
-          {{- else }}
-          valueFrom:
-            secretKeyRef:
-              {{- if .Values.db.custom_install.password.useSecret }}
-              name: {{ .Values.db.custom_install.password.fromSecret }}
-              key: {{ .Values.db.custom_install.password.fromSecretKey }}
-              {{- else }}
-              name: {{ .Release.Name }}-secrets
-              key: dbpassword
-              {{- end }}
-          {{- end }}
-        - name: PG_USER
-          {{- if .Values.db.use_operator }}
-          value: etrip
-          {{- else }}
-          value: {{ .Values.db.custom_install.username -}}
-          {{- end }}
-        - name: PG_HOST
-          {{ if .Values.db.use_operator -}}
-          value: {{ include "clusterName" . }}
-          {{- else }}
-          value: {{ .Values.db.custom_install.host -}} : 
-            {{- .Values.db.custom_install.port }}
-          {{ end }}
-        - name: PG_DBNAME
-          {{ if .Values.db.use_operator -}}
-          value: etrip
-          {{- else -}}
-          value: {{ .Values.db.custom_install.dbname -}}
-          {{- end }}
-        - name: CONFIG_PATH
-          value: /config/api.ini
       {{- end }}
       {{- if .Values.elogger.enabled }}
       - name: sendlogs
@@ -396,6 +307,8 @@ spec:
             path: etrip/config.json
           - key: etrip-nginx.conf
             path: etrip/nginx.conf
+          - key: supervisor.conf
+            path: etrip/supervisor.conf
           {{- if ne (len .Values.etrip.passwords) 0 }}
           - key: htpasswd
             path: etrip/htpasswd
@@ -405,10 +318,6 @@ spec:
           {{- if .Values.frontends.enabled }}
           - key: frontends-nginx.conf
             path: frontends/nginx.conf
-          {{- end }}
-          {{- if .Values.api.enabled }}
-          - key: api.ini
-            path: api/api.ini
           {{- end }}
           {{ range $b2bkey, $b2b := .Values.b2b}}
           - key: b2b-{{$b2bkey}}.json

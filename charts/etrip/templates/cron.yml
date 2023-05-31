@@ -12,8 +12,16 @@ spec:
   failedJobsHistoryLimit: {{ .cron.failedHistory | default 1 }}
   concurrencyPolicy: Forbid
   jobTemplate:
+    metadata:
+      labels:
+        cronjob-name: {{ .cron.name }}
+        {{- include "selectorLabels" .global | nindent 8 }}
     spec:
       template:
+        metadata:
+          labels:
+            cronjob-name: {{ .cron.name }}
+            {{- include "selectorLabels" .global | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:
@@ -49,7 +57,7 @@ spec:
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
                   {{- include "clusterName" .global }}
               {{- else }}
-              value: sslmode=disable password=$(DB_PASSWORD) user= 
+              value: sslmode=disable password=$(DB_PASSWORD) user=
                   {{- .global.Values.db.custom_install.username }} dbname=
                   {{- .global.Values.db.custom_install.dbname}} host=
                   {{- .global.Values.db.custom_install.host }} port=
@@ -98,13 +106,13 @@ spec:
               value: /tmp/elogger
             {{- if .global.Values.smtpgate.enabled }}
             - name: ETRIP_SMTP_HOST
-              value: {{ .global.Release.Name }}-admin
+              value: {{ .global.Release.Name }}-service
             {{- end }}
             {{- with .cron.resources }}
             resources:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-            args: 
+            command: 
               - /bin/sh
               - -c
               - |
@@ -168,7 +176,7 @@ spec:
               {{- with $b2bkey := .b2bKey }}
               - key: b2b-{{$b2bkey}}.json
                 path: etrip/b2b.json
-              {{ end }}
+              {{- end }}
           - name: elogger
             emptyDir: {}
 {{- end }}

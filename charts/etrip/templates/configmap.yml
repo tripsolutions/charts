@@ -23,44 +23,205 @@ data:
   b2b-{{ $key }}.json: |
     {{- toJson $config | nindent 4 }}
   {{- end }}
+  supervisor.conf: |
+    [unix_http_server]
+    file=/tmp/supervisor.sock
+
+    [supervisord]
+    logfile=/dev/null
+    pidfile=/tmp/supervisord.pid
+
+    [rpcinterface:supervisor]
+    supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+    [supervisorctl]
+    serverurl=unix:///tmp/supervisor.sock
+
+    [program:fpm]
+    command = php-fpm -y /config/fpm.ini
+    autorestart = true
+    startretries = 5
+    stopwaitsecs = 15
+    stdout_logfile=/dev/fd/1
+    stdout_logfile_maxbytes=0
+    stderr_logfile = /dev/fd/2
+    stderr_logfile_maxbytes = 0
+
+    [program:nginx]
+    command = nginx -c /config/nginx.conf
+    autorestart = true
+    startretires = 5
+    stopwaitsecs = 15
+    stdout_logfile=/dev/fd/1
+    stdout_logfile_maxbytes=0
+    stderr_logfile = /dev/fd/2
+    stderr_logfile_maxbytes = 0
   etrip-nginx.conf: |
-    {{- if eq (len .Values.etrip.passwords) 0 }}
-    geo $trusted { default 1; }
-    {{- else }}
-    geo $trusted { 
-      default 0;
-
-      # this list should be left defined in master values
-      {{- range $value := .Values.etrip.trusted_ips }}
-      {{ $value }} 1;
-      {{- end }}
-
-      # this list should be used to add install-specific trusted IPs
-      {{- range $value := .Values.etrip.other_trusted_ips }}
-      {{ $value }} 1;
-      {{- end }}
-    }
-    {{- end }}
-    map $request_uri $slow { 
-      default 0; 
-
-      # this list should be left defined in master values
-      {{- range $value := .Values.etrip.slow_urls }}
-      {{ $value }} 1;
-      {{- end }}
-
-      # this list should be used to add install-specific URLs
-      {{- range $value := .Values.etrip.other_slow_urls }}
-      {{ $value }} 2;
-      {{- end }}
+    worker_processes {{ .Values.etrip.nginx.workers | default 1 }};
+    pcre_jit on;
+    error_log /dev/stderr;
+    pid /tmp/nginx.pid;
+    include /etc/nginx/modules-enabled/*.conf;
+    daemon off;
+    events {
+      worker_connections 512;
     }
 
-    map $remote_user $webservice { 
-      default webservice;
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
 
-      {{- range $value := .Values.etrip.priority_api_users }}
-      {{ $value }} webservice_prio;
+      server_tokens off;
+      client_max_body_size 20m;
+      keepalive_timeout 65;
+      sendfile on;
+      tcp_nopush on;
+
+      access_log /dev/stdout;
+      error_log /dev/stderr;
+
+      set_real_ip_from 0.0.0.0/0;
+      real_ip_header X-Forwarded-For;
+      real_ip_recursive on;
+
+      {{- if ne (len .Values.etrip.passwords) 0 }}
+      geo $trusted { 
+        default 0;
+        {{- range $value := .Values.etrip.trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+      }
       {{- end }}
+
+      map $request_uri $slow { 
+        default 0; 
+        {{- range $value := .Values.etrip.slow_urls }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_slow_urls }}
+        {{ $value }} 2;
+        {{- end }}
+      }
+
+      map $remote_user $webservice { 
+        default webservice;
+        {{- range $value := .Values.etrip.priority_api_users }}
+        {{ $value }} webservice_prio;
+        {{- end }}
+      }
+
+      upstream webapp {
+          server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream webservice {
+          server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream webservice_prio {
+          server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      upstream background {
+          server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      server {
+          listen *:8080;
+          server_name localhost;
+          root /var/www/localhost/webapp;
+          location @404 { internal; }
+          index index.php index.html;
+          
+          {{- if ne (len .Values.etrip.passwords) 0 }}
+          set $auth_realm "etrip backend";
+          if ($trusted != 0) {
+              set $auth_realm off;
+          }
+          auth_basic $auth_realm;
+          auth_basic_user_file /config/htpasswd;
+          {{- end }}
+
+          fastcgi_split_path_info ^(.+\.php)(.*)$;
+          fastcgi_index index.php;
+          fastcgi_intercept_errors off;
+          error_page 404 @404;
+          include /etc/nginx/fastcgi.conf;
+
+          location @slow {
+              fastcgi_read_timeout 300s;
+              fastcgi_connect_timeout 300s;
+              fastcgi_send_timeout 300s; 
+              fastcgi_pass background;
+          }
+
+          location / {
+            location /api {
+              try_files $uri /apiv2/index.php$is_args$args;
+            }
+            location ~ \.php {
+                error_page 418 = @slow;
+                fastcgi_pass webapp;
+
+                location ~ ^/(wscsv|file)\.php {
+                    auth_basic off;
+                    fastcgi_pass webapp;
+                }
+
+                location ~ ^/(ws|json|apiv2/index)\.php {
+                    auth_basic off;
+                    fastcgi_pass $webservice;
+                }
+
+                if ($slow = 1) {
+                    return 418;
+                }
+            }
+          }
+
+          location ~ ^/(status|ping)$ {
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              fastcgi_index index.php;
+              include /etc/nginx/fastcgi_params;
+              fastcgi_pass webapp;
+          }
+      }
+
+      {{ $port := 5000 }}
+      {{- range $key, $instance := .Values.b2b }}
+      upstream b2b-{{ $key }} {
+          server localhost:{{ $instance.fpm.port }} max_fails=64 fail_timeout=1s;
+      }
+
+      server {
+          listen *:{{ $port }};{{ $port = add $port 1 }}
+          server_name localhost;
+          root /var/www/localhost/b2b;
+          location @404 { internal; }
+          index index.php;
+
+          fastcgi_split_path_info ^/server(.+\.php)(.*)$;
+          fastcgi_index index.php;
+          fastcgi_intercept_errors off;
+          error_page 404 @404;
+          include /etc/nginx/fastcgi.conf;
+
+          location /server {
+              location ~ \.php {
+                fastcgi_pass b2b-{{ $key }};
+              }
+          }
+      }
+      {{- end }}
+
+      client_body_temp_path /tmp/client_body;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
     }
   {{- if ne (len .Values.etrip.passwords) 0 }}
   htpasswd: |
@@ -71,14 +232,13 @@ data:
   etrip-fpm.ini: |
     [global]
     daemonize = no
+    error_log = /dev/stderr
 
     {{- range $key, $val := .Values.etrip.fpm }}
     {{- if not ($val.disabled) }}
 
     [fpm-{{$key}}]
     listen = {{ $val.port }}
-    user = nginx
-    group = nginx
     pm = {{ $val.mode | default "dynamic" }}
     pm.max_children = {{ $val.max }}
     pm.start_servers = {{ $val.start }}
@@ -87,6 +247,10 @@ data:
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
+    {{- if and $.Values.etrip.use_redis (not (eq $key "ws") ) (not (eq $key "ws_prio") ) }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
     php_value[{{$pkey}}] = {{$pval}}
@@ -95,6 +259,36 @@ data:
     {{- range $pkey, $pval := . }}
     php_admin_value[{{$pkey}}] = {{$pval}}
     {{- end }}{{end}}
+    {{- end }}
+    {{- end }}
+
+    {{- range $key, $instance := .Values.b2b }}
+    {{ $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
+    {{- if not ($val.disabled) }}
+
+    [fpm-b2b-{{$key}}]
+    listen = {{ $val.port }}
+    pm = {{ $val.mode | default "dynamic" }}
+    pm.max_children = {{ $val.max }}
+    pm.start_servers = {{ $val.start }}
+    pm.min_spare_servers = {{ $val.low }}
+    pm.max_spare_servers = {{ $val.high }}
+    ping.path = /ping
+    request_terminate_timeout = 300
+    clear_env = no
+    {{- if $.Values.etrip.use_redis }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    {{- end }}
+    {{- with $val.phpValues -}}
+    {{- range $pkey, $pval := . }}
+    php_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- with $val.phpAdminValues -}}
+    {{- range $pkey, $pval := . }}
+    php_admin_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    env[B2B_CONFIG] = /config/b2b-{{$key}}.json
     {{- end }}
     {{- end }}
 
@@ -127,35 +321,23 @@ data:
     {{- end }}
   {{- if .Values.frontends.enabled }}
   frontends-nginx.conf: |
-    user nginx;
     worker_processes 1;
-    error_log /dev/stderr warn;
-    pid /var/run/nginx.pid;
+    error_log /dev/stderr;
+    pid /tmp/nginx.pid;
     daemon off;
     events {
-      worker_connections  1024;
+      worker_connections 512;
     }
 
     http {
       include /etc/nginx/mime.types;
       default_type application/octet-stream;
 
-      log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-        '$status $body_bytes_sent "$http_referer" '
-        '"$http_user_agent" "$http_x_forwarded_for"';
-      access_log  /dev/stdout main;
-      sendfile        on;
-      #tcp_nopush     on;
-      keepalive_timeout  65;
-      #gzip  on;
+      access_log  /dev/stdout;
+      error_log  /dev/stderr;
 
-      upstream web_frontend {
-        {{- if .Values.etrip.fpm.frontends }}
-        server localhost:{{ .Values.etrip.fpm.frontends.port }};
-        {{- else }}
-        server localhost:{{ .Values.etrip.fpm.main.port }};
-        {{- end }}
-      }
+      sendfile        on;
+      tcp_nopush     on;
 
       set_real_ip_from 0.0.0.0/0;
       real_ip_header X-Forwarded-For;
@@ -163,7 +345,7 @@ data:
 
       {{- range $idx, $key := .Values.frontends.endpoints }}
       server {
-        listen *:{{ add 82 $idx }};
+        listen *:{{ add 8082 $idx }};
         server_name ~^.*$;
 
         root /frontends/{{ $key }};
@@ -178,67 +360,20 @@ data:
           fastcgi_intercept_errors off;
           error_page 404 @404;
           include /etc/nginx/fastcgi.conf;
-
-          fastcgi_pass web_frontend;
+          
+          {{- if $.Values.etrip.fpm.frontends }}
+          fastcgi_pass localhost:{{ $.Values.etrip.fpm.frontends.port }};
+          {{- else }}
+          fastcgi_pass localhost:{{ $.Values.etrip.fpm.main.port }};
+          {{- end }}
         }
       }
       {{- end }}
+
+      client_body_temp_path /tmp/client_body;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
     }
   {{- end }}
-  {{- if .Values.api.enabled }}
-  api.ini: |
-    [app:main]
-    use = egg:etrip
-
-    pyramid.reload_templates = false
-    pyramid.debug_authorization = false
-    pyramid.debug_notfound = false
-    pyramid.debug_routematch = false
-    pyramid.default_locale_name = en
-
-    sqlalchemy.url = postgresql+psycopg2://$PG_USER:$PG_PASS@$PG_HOST/$PG_DBNAME
-    retry.attempts = 3
-
-    [pshell]
-    setup = etrip.pshell.setup
-
-    [alembic]
-    script_location = %(here)s/alembic
-    file_template = %%(year)d%%(month).2d%%(day).2d_%%(rev)s
-
-    [server:main]
-    use = egg:waitress#main
-    listen = 0.0.0.0:6543
-
-    [loggers]
-    keys = root, etrip, sqlalchemy
-
-    [handlers]
-    keys = console
-
-    [formatters]
-    keys = generic
-
-    [logger_root]
-    level = INFO
-    handlers = console
-
-    [logger_etrip]
-    level = DEBUG
-    handlers =
-    qualname = etrip
-
-    [logger_sqlalchemy]
-    level = WARN
-    handlers =
-    qualname = sqlalchemy.engine
-
-    [handler_console]
-    class = StreamHandler
-    args = (sys.stderr,)
-    level = NOTSET
-    formatter = generic
-
-    [formatter_generic]
-    format = %(asctime)s %(levelname)-5.5s [%(name)s:%(lineno)s][%(threadName)s] %(message)s
-  {{- end}}
