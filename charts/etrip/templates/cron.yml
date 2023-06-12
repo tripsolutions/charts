@@ -1,4 +1,9 @@
 {{- define "etripCronjob" }}
+{{- $db := mergeOverwrite .global.Values.db .global.Values.db.operator_install -}}
+{{- $clusterName := include "clusterName" (dict
+      "db" $db
+      "Release" .global.Release
+    ) -}}
 kind: CronJob
 apiVersion: batch/v1
 metadata:
@@ -36,57 +41,25 @@ spec:
             env:
             - name: DB_PASSWORD
               valueFrom:
-              {{- if .global.Values.db.use_operator }}
                 secretKeyRef: 
-                  name: etrip. {{- include "clusterName" .global -}} .credentials
+                  name: etrip. {{- $clusterName -}} .credentials
                   key: password
-              {{- else }}
-                secretKeyRef:
-                  {{- if .global.Values.db.custom_install.password.useSecret }}
-                  name: {{ .global.Values.db.custom_install.password.fromSecret }}
-                  key: {{ .global.Values.db.custom_install.password.fromSecretKey }}
-                  {{- else }}
-                  name: {{ .global.Release.Name }}-secrets
-                  key: dbpassword
-                  {{- end }}
-              {{- end }}
             - name: ETRIP_CONFIG
               value: /config
             - name: ETRIP_DSN
-              {{- if .global.Values.db.use_operator }}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                  {{- include "clusterName" .global }}
-              {{- else }}
-              value: sslmode=disable password=$(DB_PASSWORD) user=
-                  {{- .global.Values.db.custom_install.username }} dbname=
-                  {{- .global.Values.db.custom_install.dbname}} host=
-                  {{- .global.Values.db.custom_install.host }} port=
-                  {{- .global.Values.db.custom_install.port }}
-              {{- end }}
-            {{- if and .global.Values.db.use_operator ( gt (int .global.Values.replicas.db) 1 ) }}
+                  {{- $clusterName }}
+            {{- if gt (int .global.Values.replicas.db) 1 }}
             - name: ETRIP_DSN_RO
-              {{ if .global.Values.db.use_operator -}}
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                {{- include "clusterName" .global }}-repl connect_timeout=1
-              {{- else -}}
-              value: sslmode=disable password=$(DB_PASSWORD) user= 
-                {{- .global.Values.db.custom_install.username }} dbname=
-                {{- .global.Values.db.custom_install.dbname}} host=
-                {{- .global.Values.db.custom_install.host }} port=
-                {{- .global.Values.db.custom_install.port }}
-              {{- end }}
+                {{- $clusterName }}-repl connect_timeout=1
             {{- end }}
             {{- if .global.Values.etrip.searchlogs.enabled }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
-                  {{- if .global.Values.etrip.searchlogs.is_operator }}
                   name: {{ printf "%s.%s.credentials" .global.Values.etrip.searchlogs.username .global.Values.etrip.searchlogs.host }}
                   key: password
-                  {{- else }}
-                  name: {{ .global.Values.etrip.searchlogs.password.fromSecret }}
-                  key: {{ .global.Values.etrip.searchlogs.password.fromSecretKey }}
-                  {{- end }}
             - name: ETRIP_SEARCHLOGS_DSN
               value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
                 {{- .global.Values.etrip.searchlogs.username }} dbname=
@@ -139,13 +112,8 @@ spec:
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
-                  {{- if .global.Values.elogger.db.is_operator }}
                   name: {{ printf "%s.%s.credentials" .global.Values.elogger.db.username .global.Values.elogger.db.host }}
                   key: password
-                  {{- else }}
-                  name: {{ .global.Values.elogger.db.password.fromSecret }}
-                  key: {{ .global.Values.elogger.db.password.fromSecretKey }}
-                  {{- end }}
             - name: ELOGGER_DBPORT
               value: {{ .global.Values.elogger.db.port | quote }}
             - name: ELOGGER_TABLE

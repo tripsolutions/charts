@@ -1,3 +1,8 @@
+{{- $db := mergeOverwrite .Values.db .Values.db.operator_install -}}
+{{- $clusterName := include "clusterName" (dict
+      "db" $db
+      "Release" .Release
+    ) -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,35 +42,15 @@ spec:
           name: elogger
         env:
         - name: DB_PASSWORD
-          {{- if .Values.db.use_operator }}
           valueFrom:
             secretKeyRef: 
-              name: etrip. {{- include "clusterName" . -}} .credentials
+              name: etrip. {{- $clusterName -}} .credentials
               key: password
-          {{- else }}
-          valueFrom:
-            secretKeyRef:
-              {{- if .Values.db.custom_install.password.useSecret }}
-              name: {{ .Values.db.custom_install.password.fromSecret }}
-              key: {{ .Values.db.custom_install.password.fromSecretKey }}
-              {{- else }}
-              name: {{ .Release.Name }}-secrets
-              key: dbpassword
-              {{- end }}
-          {{- end }}
         - name: ETRIP_CONFIG
           value: /config
         - name: ETRIP_DSN
-          {{ if .Values.db.use_operator -}}
           value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- include "clusterName" . }}
-          {{- else -}}
-          value: sslmode=disable password=$(DB_PASSWORD) user= 
-            {{- .Values.db.custom_install.username }} dbname=
-            {{- .Values.db.custom_install.dbname}} host=
-            {{- .Values.db.custom_install.host }} port=
-            {{- .Values.db.custom_install.port }}
-          {{- end }}
+            {{- $clusterName }}
         - name: ETRIP_LOGDIR
           value: /tmp/elogger
         - name: ETRIP_VERSION
@@ -105,39 +90,19 @@ spec:
         {{- end}}
         env:
         - name: DB_PASSWORD
-          {{- if .Values.db.use_operator }}
           valueFrom:
             secretKeyRef: 
-              name: etrip. {{- include "clusterName" . -}} .credentials
+              name: etrip. {{- $clusterName -}} .credentials
               key: password
-          {{- else }}
-          valueFrom:
-            secretKeyRef:
-              {{- if .Values.db.custom_install.password.useSecret }}
-              name: {{ .Values.db.custom_install.password.fromSecret }}
-              key: {{ .Values.db.custom_install.password.fromSecretKey }}
-              {{- else }}
-              name: {{ .Release.Name }}-secrets
-              key: dbpassword
-              {{- end }}
-          {{- end }}
         - name: ETRIP_CONFIG
           value: /config
         - name: ETRIP_DSN
-          {{ if .Values.db.use_operator -}}
           value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- include "clusterName" . }}
-          {{- else -}}
-          value: sslmode=disable password=$(DB_PASSWORD) user= 
-            {{- .Values.db.custom_install.username }} dbname=
-            {{- .Values.db.custom_install.dbname}} host=
-            {{- .Values.db.custom_install.host }} port=
-            {{- .Values.db.custom_install.port }}
-          {{- end }}
-        {{- if and .Values.db.use_operator ( gt (int .Values.replicas.db) 1 ) }}
+            {{- $clusterName }}
+        {{- if gt (int .Values.replicas.db) 1 }}
         - name: ETRIP_DSN_RO
           value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- include "clusterName" . }}-repl connect_timeout=1
+            {{- $clusterName }}-repl connect_timeout=1
         {{- end }}
         {{- if .Values.etrip.use_redis }}
         - name: REDIS_SECRET
@@ -150,13 +115,8 @@ spec:
         - name: SEARCHLOGS_DBPASSWORD
           valueFrom:
             secretKeyRef:
-              {{- if .Values.etrip.searchlogs.is_operator }}
               name: {{ printf "%s.%s.credentials" .Values.etrip.searchlogs.username .Values.etrip.searchlogs.host }}
               key: password
-              {{- else }}
-              name: {{ .Values.etrip.searchlogs.password.fromSecret }}
-              key: {{ .Values.etrip.searchlogs.password.fromSecretKey }}
-              {{- end }}
         - name: ETRIP_SEARCHLOGS_DSN
           value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
             {{- $.Values.etrip.searchlogs.username }} dbname=
@@ -242,13 +202,8 @@ spec:
         - name: ELOGGER_DBPASS
           valueFrom:
             secretKeyRef: 
-              {{- if .Values.elogger.db.is_operator }}
               name: {{ printf "%s.%s.credentials" .Values.elogger.db.username .Values.elogger.db.host }}
               key: password
-              {{- else }}
-              name: {{ .Values.elogger.db.password.fromSecret }}
-              key: {{ .Values.elogger.db.password.fromSecretKey }}
-              {{- end }}
         - name: ELOGGER_DBPORT
           value: {{ .Values.elogger.db.port | quote }}
         - name: ELOGGER_TABLE

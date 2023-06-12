@@ -1,21 +1,25 @@
-{{- if .Values.db.use_operator }}
+{{- $db := mergeOverwrite .Values.db .Values.db.operator_install -}}
+{{- $clusterName := include "clusterName" (dict
+      "db" $db
+      "Release" .Release
+    ) -}}
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
-  name: {{ include "clusterName" . }}
+  name: {{ $clusterName }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "labels" $ | nindent 4 }}
-    {{- if .Values.db.operator_install.exporter.enabled }}
+    {{- if $db.exporter.enabled }}
     exporter: "true"
     {{- end }}
-  {{- if .Values.db.operator_install.controller }}
+  {{- if $db.controller }}
   annotations:
-    acid.zalan.do/controller: {{ .Values.db.operator_install.controller }}
+    acid.zalan.do/controller: {{ $db.controller }}
   {{- end }}
 spec:
-  teamId: {{ .Values.db.operator_install.teamId }}
-  volume: {{ toYaml .Values.db.operator_install.dbVolume | nindent 4 }}
+  teamId: {{ $db.teamId }}
+  volume: {{ toYaml $db.dbVolume | nindent 4 }}
   numberOfInstances: {{ .Values.replicas.db }}
   users:
     etrip: []
@@ -23,11 +27,11 @@ spec:
     etrip: etrip
   postgresql:
     version: "11" # postgres >12 does not support OIDs
-    parameters: {{ toYaml .Values.db.operator_install.dbParameters | nindent 6}}
-  {{- with .Values.db.operator_install.resources }}
+    parameters: {{ toYaml $db.dbParameters | nindent 6}}
+  {{- with $db.resources }}
   resources: {{ toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.db.operator_install.clone }}
+  {{- with $db.clone }}
   {{- if not .namespace }}
   clone: {{ toYaml . | nindent 4 }}
   {{- else }}
@@ -35,16 +39,16 @@ spec:
     cluster: {{ $.Release.Name }}-source
   {{- end }}
   {{- end }}
-  {{- with .Values.db.operator_install.standby }}
+  {{- with $db.standby }}
   {{- if .enabled }}
   standby:
-    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default (include "clusterName" $) }}/{{ .uid }}/wal/11
+    s3_wal_path: s3://{{ .bucket }}/spilo/{{ .name | default $clusterName }}/{{ .uid }}/wal/11
   {{- end }}
   {{- end }}
-  {{- if .Values.db.operator_install.exporter.enabled }}
+  {{- if $db.exporter.enabled }}
   sidecars:
   - name: exporter
-    image: {{ .Values.db.operator_install.exporter.image }}
+    image: {{ $db.exporter.image }}
     ports:
     - name: http-prom
       containerPort: 9187
@@ -52,7 +56,7 @@ spec:
     env:
     - name: DATA_SOURCE_NAME
       value: postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost/postgres
-  {{- if len .Values.db.operator_install.exporter.extraQueries }}
+  {{- if len $db.exporter.extraQueries }}
     - name: PG_EXPORTER_EXTEND_QUERY_PATH
       value: /queries.yaml
   additionalVolumes:
@@ -62,23 +66,23 @@ spec:
     volumeSource:
       name: queries
       configMap:
-        name: {{ include "clusterName" . }}-queries
+        name: {{ $clusterName }}-queries
     targetContainers:
     - exporter
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "clusterName" . }}-queries
+  name: {{ $clusterName }}-queries
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "labels" $ | nindent 4 }}
 data:
   queries.yaml: |
-    {{- toYaml .Values.db.operator_install.exporter.extraQueries | nindent 4 }}
+    {{- toYaml $db.exporter.extraQueries | nindent 4 }}
   {{- end }}
   {{- end }}
-{{- if and .Values.db.operator_install.clone .Values.db.operator_install.refresh }}
+{{- if and $db.clone $db.refresh }}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -98,7 +102,7 @@ metadata:
 rules:
 - apiGroups: [ acid.zalan.do ]
   resources: [ postgresqls ]
-  resourceNames: [ {{ include "clusterName" . }} ]
+  resourceNames: [ {{ $clusterName }} ]
   verbs: [ get, delete ]
 - apiGroups: [ acid.zalan.do ]
   resources: [ postgresqls ]
@@ -131,7 +135,7 @@ metadata:
   labels:
     {{- include "labels" $ | nindent 4 }}
 spec:
-  schedule: {{ .Values.db.operator_install.refresh }}
+  schedule: {{ $db.refresh }}
   concurrencyPolicy: Forbid
   jobTemplate:
     metadata:
@@ -168,22 +172,21 @@ spec:
             - name: ETRIP_RELEASE
               value: {{ .Release.Name }}
             - name: ETRIP_CLUSTER
-              value: {{ include "clusterName" . }}
+              value: {{ $clusterName }}
 {{- end }}
-{{- if .Values.db.operator_install.clone }}
-{{- if .Values.db.operator_install.clone.namespace }}
+{{- if $db.clone }}
+{{- if $db.clone.namespace }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  {{- $clusterName := include "clusterName" . }}
   name: standby.{{ .Release.Name }}-source.credentials
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "labels" . | nindent 4 }}
   annotations:
-    reflector.v1.k8s.emberstack.com/reflects: "{{- .Values.db.operator_install.clone.namespace -}} /standby.
-      {{- .Values.db.operator_install.clone.cluster | default $clusterName -}} .credentials"
+    reflector.v1.k8s.emberstack.com/reflects: "{{- $db.clone.namespace -}} /standby.
+      {{- $db.clone.cluster | default $clusterName -}} .credentials"
 type: Opaque
 ---
 apiVersion: v1
@@ -195,13 +198,12 @@ metadata:
     {{- include "labels" . | nindent 4 }}
 spec:
   type: ExternalName
-  externalName: {{.Values.db.operator_install.clone.cluster | default $clusterName -}} .
-    {{- .Values.db.operator_install.clone.namespace -}} .svc.cluster.local
+  externalName: {{ $db.clone.cluster | default $clusterName -}} .
+    {{- $db.clone.namespace -}} .svc.cluster.local
   ports:
   - name: postgres
     port: 5432
     protocol: TCP
     targetPort: 5432
-{{- end }}
 {{- end }}
 {{- end }}

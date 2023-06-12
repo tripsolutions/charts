@@ -44,14 +44,15 @@ app.kubernetes.io/name: {{ .Chart.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
+
 {{/*
 Cluster name
 */}}
 {{- define "clusterName" -}}
-{{- if or (hasPrefix (printf "%s-" .Values.db.operator_install.teamId) .Release.Name) 
-    (eq .Values.db.operator_install.teamId .Release.Name) -}}
-{{- .Release.Name -}} -cluster
-{{- else -}}
-{{- .Values.db.operator_install.teamId -}}-{{- .Release.Name -}} -cluster
-{{- end -}}
+    {{- if or (hasPrefix (printf "%s-" .db.teamId) .Release.Name) 
+        (eq .db.teamId .Release.Name) -}}
+        {{- .Release.Name -}} -cluster
+    {{- else -}}
+        {{- .db.teamId -}}-{{- .Release.Name -}} -cluster
+    {{- end -}}
 {{- end -}}

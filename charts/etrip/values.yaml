@@ -94,11 +94,6 @@ etrip:
     username: searchlogs
     dbname: searchlogs
     port: 5432
-    is_operator: true
-    password:
-      # set is_operator=false for the values below to take effect
-      fromSecret: secret-name
-      fromSecretKey: password
   priority_api_users: []
   config: 
     install_id: default
@@ -656,11 +651,6 @@ elogger:
     username: elogger
     dbname: elogger
     port: 5432
-    is_operator: true
-    password:
-      # set is_operator=false for the values below to take effect
-      fromSecret: secret-name
-      fromSecretKey: password
 
   image:
     pullPolicy: IfNotPresent
@@ -811,79 +801,64 @@ cron: []
 #   resources: {} 
 
 db: 
-  use_operator: true
-  operator_install:
-    # for use_operator = true
-    teamId: etrip
-    dbParameters:
-      max_connections: "20"
-      shared_buffers: 1GB
-      temp_buffers: 32MB
-      work_mem: 32MB 
-      timezone: "Europe/Berlin"
-      maintenance_work_mem: 32MB
-      autovacuum_work_mem: 32MB
-      temp_file_limit: 2GB
-      effective_cache_size: 2GB
-      vacuum_cost_delay: 20ms
-      effective_io_concurrency: "1"
-      jit: "on"
-      log_autovacuum_min_duration: "5000"
-      log_checkpoints: "off"
-      log_connections: "off"
-      log_disconnections: "off"
-      log_min_duration_statement: "5000"
-      log_statement: "none"
-      log_rotation_age: "1d"
-      log_rotation_size: "10240"
-    dbVolume:
-      size: 5Gi
-    # clone: 
-    #   cluster: master
-    #   namespace: ns
-    # refresh: 10 2 * * *
-    # allowCloneFrom: ns
-    standby:
-      enabled: false
-      bucket: k8s-pg-wal
-      uid: null
-    # don't override operator defaults
-    resources: {}
-    exporter:
-      enabled: false
-      image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
-      extraQueries:
-        pg_replication:
-          query: |-
-            SELECT
+  teamId: etrip
+  dbParameters:
+    max_connections: "20"
+    shared_buffers: 1GB
+    temp_buffers: 32MB
+    work_mem: 32MB 
+    timezone: "Europe/Berlin"
+    maintenance_work_mem: 32MB
+    autovacuum_work_mem: 32MB
+    temp_file_limit: 2GB
+    effective_cache_size: 2GB
+    vacuum_cost_delay: 20ms
+    effective_io_concurrency: "1"
+    jit: "on"
+    log_autovacuum_min_duration: "5000"
+    log_checkpoints: "off"
+    log_connections: "off"
+    log_disconnections: "off"
+    log_min_duration_statement: "5000"
+    log_statement: "none"
+    log_rotation_age: "1d"
+    log_rotation_size: "10240"
+  dbVolume:
+    size: 5Gi
+  # clone: 
+  #   cluster: master
+  #   namespace: ns
+  # refresh: 10 2 * * *
+  # allowCloneFrom: ns
+  standby:
+    enabled: false
+    bucket: k8s-pg-wal
+    uid: null
+  # don't override operator defaults
+  resources: {}
+  exporter:
+    enabled: false
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
+    extraQueries:
+      pg_replication:
+        query: |-
+          SELECT
+            CASE WHEN pg_is_in_recovery()
+            THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
+              pg_last_xact_replay_timestamp())
+            ELSE NULL END AS lag,
+            pg_wal_lsn_diff(
               CASE WHEN pg_is_in_recovery()
-              THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
-                pg_last_xact_replay_timestamp())
-              ELSE NULL END AS lag,
-              pg_wal_lsn_diff(
-                CASE WHEN pg_is_in_recovery()
-                THEN pg_last_wal_replay_lsn()
-                ELSE pg_current_wal_lsn() END,
-                '0/0') AS current_lsn;
-          metrics:
-          - lag:
-              usage: GAUGE
-              description: Replication lag behind master in seconds
-          - current_lsn:
-              usage: COUNTER
-              description: Current WAL/LSN stream location in bytes
-
-  custom_install: 
-    # for use_operator = false
-    host: tripsol-clients.default.svc
-    username: etrip
-    dbname: etrip
-    port: 5432
-    password:
-      useSecret: true
-      clearText: example-password
-      fromSecret: secret-name
-      fromSecretKey: secret-key
+              THEN pg_last_wal_replay_lsn()
+              ELSE pg_current_wal_lsn() END,
+              '0/0') AS current_lsn;
+        metrics:
+        - lag:
+            usage: GAUGE
+            description: Replication lag behind master in seconds
+        - current_lsn:
+            usage: COUNTER
+            description: Current WAL/LSN stream location in bytes
 
 resources:
   migrate:
