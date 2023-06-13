@@ -1,8 +1,5 @@
-{{- $db := mergeOverwrite .Values.db .Values.db.operator_install -}}
-{{- $clusterName := include "clusterName" (dict
-      "db" $db
-      "Release" .Release
-    ) -}}
+{{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
+{{- $clusterName := include "clusterName" $ -}}
 apiVersion: "acid.zalan.do/v1"
 kind: postgresql
 metadata:
@@ -18,7 +15,7 @@ metadata:
     acid.zalan.do/controller: {{ $db.controller }}
   {{- end }}
 spec:
-  teamId: {{ $db.teamId }}
+  teamId: {{ .Chart.Name }}
   volume: {{ toYaml $db.dbVolume | nindent 4 }}
   numberOfInstances: {{ .Values.replicas.db }}
   users:

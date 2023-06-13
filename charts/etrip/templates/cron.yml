@@ -1,9 +1,6 @@
 {{- define "etripCronjob" }}
-{{- $db := mergeOverwrite .global.Values.db .global.Values.db.operator_install -}}
-{{- $clusterName := include "clusterName" (dict
-      "db" $db
-      "Release" .global.Release
-    ) -}}
+{{- $db := mergeOverwrite .global.Values.db ( .global.Values.db.operator_install | default dict ) -}}
+{{- $clusterName := include "clusterName" .global -}}
 kind: CronJob
 apiVersion: batch/v1
 metadata:
@@ -54,21 +51,22 @@ spec:
               value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
                 {{- $clusterName }}-repl connect_timeout=1
             {{- end }}
-            {{- if .global.Values.etrip.searchlogs.enabled }}
+            {{- with .global.Values.etrip.searchlogs -}}{{- if .enabled }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s.%s.credentials" .global.Values.etrip.searchlogs.username .global.Values.etrip.searchlogs.host }}
+                  name: {{ printf "%s.%s.credentials" .username .host }}
                   key: password
             - name: ETRIP_SEARCHLOGS_DSN
-              value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
-                {{- .global.Values.etrip.searchlogs.username }} dbname=
-                {{- .global.Values.etrip.searchlogs.dbname }} host=
-                {{- .global.Values.etrip.searchlogs.host }} port=
-                {{- .global.Values.etrip.searchlogs.port }}
+              value: >-
+                password=$(SEARCHLOGS_DBPASSWORD)
+                user={{ .username }}
+                dbname={{ .dbname }}
+                host={{ .host }}
             - name: ETRIP_SEARCHLOGS_TABLE
-              value: {{ .global.Values.etrip.searchlogs.table }}
-            {{- end }}
+              value: {{ .table | default ($.global.Release.Name
+                | trimPrefix (print $.global.Chart.Name "-")) }}
+            {{- end }}{{- end }}
             {{- if .cron.env }}
             {{- range .cron.env }}
             - name: {{ .key }}
@@ -92,32 +90,27 @@ spec:
                 {{- .cron.command | toString | nindent 16 }}
                 touch /tmp/elogger/elogger.done
           {{- if and .global.Values.elogger.enabled (not .cron.nologs ) }}
+          {{- with .global.Values.elogger }}
           - name: sendlogs
-            {{- with .global.Values.elogger.image }}
-            image: {{ .registry -}} / {{- .name -}} : 
-              {{- .tag | default $.global.Values.version | default $.global.Chart.AppVersion | toString }}
-            imagePullPolicy: {{ .pullPolicy }}
-            {{ end -}}
+            image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
+            imagePullPolicy: {{ .image.pullPolicy }}
             env:
-            - name: ENV_CONFIG
-              value: "true"
             - name: ELOGGER_DIR
               value: /tmp/elogger
-            - name: ELOGGER_DBHOST
-              value: {{ .global.Values.elogger.db.host }}
-            - name: ELOGGER_DBNAME
-              value: {{ .global.Values.elogger.db.dbname }}
-            - name: ELOGGER_DBUSER
-              value: {{ .global.Values.elogger.db.username }}
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
-                  name: {{ printf "%s.%s.credentials" .global.Values.elogger.db.username .global.Values.elogger.db.host }}
+                  name: {{ printf "%s.%s.credentials" .db.username .db.host }}
                   key: password
-            - name: ELOGGER_DBPORT
-              value: {{ .global.Values.elogger.db.port | quote }}
+            - name: ELOGGER_DSN
+              value: >-
+                user={{ .db.username }}
+                password=$(ELOGGER_DBPASS)
+                host={{ .db.host }}
+                dbname={{ .db.dbname }}
             - name: ELOGGER_TABLE
-              value: {{ .global.Values.elogger.db.table }}
+              value: {{ .table | default ($.global.Release.Name
+                | trimPrefix (print $.global.Chart.Name "-")) }}
             command:
               - sh
               - -c 
@@ -133,7 +126,7 @@ spec:
             volumeMounts:
             - mountPath: /tmp/elogger
               name: elogger
-          {{- end }}
+          {{- end }}{{ end }}
           volumes:
           - name: config
             configMap:

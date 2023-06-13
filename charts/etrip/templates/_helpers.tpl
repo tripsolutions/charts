@@ -49,10 +49,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Cluster name
 */}}
 {{- define "clusterName" -}}
-    {{- if or (hasPrefix (printf "%s-" .db.teamId) .Release.Name) 
-        (eq .db.teamId .Release.Name) -}}
+    {{- if or (hasPrefix (printf "%s-" .Chart.Name) .Release.Name) 
+        (eq .Chart.Name .Release.Name) -}}
         {{- .Release.Name -}} -cluster
     {{- else -}}
-        {{- .db.teamId -}}-{{- .Release.Name -}} -cluster
+        {{- .Chart.Name -}}-{{- .Release.Name -}} -cluster
     {{- end -}}
 {{- end -}}

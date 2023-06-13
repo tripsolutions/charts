@@ -89,11 +89,10 @@ etrip:
   other_slow_urls: []
   searchlogs:
     enabled: false
-    table: default
-    host: etrip-searchlogs-cluster
+    table: null
+    host: searchlogs-cluster
     username: searchlogs
     dbname: searchlogs
-    port: 5432
   priority_api_users: []
   config: 
     install_id: default
@@ -645,18 +644,17 @@ etrip:
 
 elogger:
   enabled: false
+  table: null
   db:
-    table: default
-    host: etrip-logging-cluster
+    host: elogger-cluster
     username: elogger
     dbname: elogger
-    port: 5432
 
   image:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: elogger
-    tag: latest
+    tag: master
 
 smtpgate:
   enabled: false
@@ -801,7 +799,6 @@ cron: []
 #   resources: {} 
 
 db: 
-  teamId: etrip
   dbParameters:
     max_connections: "20"
     shared_buffers: 1GB

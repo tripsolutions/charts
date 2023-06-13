@@ -1,8 +1,5 @@
-{{- $db := mergeOverwrite .Values.db .Values.db.operator_install -}}
-{{- $clusterName := include "clusterName" (dict
-      "db" $db
-      "Release" .Release
-    ) -}}
+{{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
+{{- $clusterName := include "clusterName" $ -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -111,21 +108,22 @@ spec:
               name: {{ .Release.Name }}-secrets
               key: session
         {{- end }}
-        {{- if $.Values.etrip.searchlogs.enabled }}
+        {{- with .Values.etrip.searchlogs -}}{{- if .enabled }}
         - name: SEARCHLOGS_DBPASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ printf "%s.%s.credentials" .Values.etrip.searchlogs.username .Values.etrip.searchlogs.host }}
+              name: {{ printf "%s.%s.credentials" .username .host }}
               key: password
         - name: ETRIP_SEARCHLOGS_DSN
-          value: sslmode=disable password=$(SEARCHLOGS_DBPASSWORD) user=
-            {{- $.Values.etrip.searchlogs.username }} dbname=
-            {{- $.Values.etrip.searchlogs.dbname }} host=
-            {{- $.Values.etrip.searchlogs.host }} port=
-            {{- $.Values.etrip.searchlogs.port }}
+          value: >-
+            password=$(SEARCHLOGS_DBPASSWORD)
+            user={{ .username }}
+            dbname={{ .dbname }}
+            host={{ .host }}
         - name: ETRIP_SEARCHLOGS_TABLE
-          value: {{ $.Values.etrip.searchlogs.table }}
-        {{- end }}
+          value: {{ .table | default ($.Release.Name
+            | trimPrefix (print $.Chart.Name "-")) }}
+        {{- end }}{{- end }}
         - name: ETRIP_LOGDIR
           value: /tmp/elogger
         - name: ETRIP_VERSION
@@ -182,32 +180,27 @@ spec:
         command: [ nginx, -c, /config/nginx.conf ]
       {{- end }}
       {{- if .Values.elogger.enabled }}
+      {{- with .Values.elogger }}
       - name: sendlogs
-        {{- with .Values.elogger.image }}
-        image: {{ .registry -}} / {{- .name -}} : 
-          {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
-        imagePullPolicy: {{ .pullPolicy }}
-        {{ end -}}
+        image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
+        imagePullPolicy: {{ .image.pullPolicy }}
         env:
-        - name: ENV_CONFIG
-          value: "true"
         - name: ELOGGER_DIR
           value: /tmp/elogger
-        - name: ELOGGER_DBHOST
-          value: {{ .Values.elogger.db.host }}
-        - name: ELOGGER_DBNAME
-          value: {{ .Values.elogger.db.dbname }}
-        - name: ELOGGER_DBUSER
-          value: {{ .Values.elogger.db.username }}
         - name: ELOGGER_DBPASS
           valueFrom:
             secretKeyRef: 
-              name: {{ printf "%s.%s.credentials" .Values.elogger.db.username .Values.elogger.db.host }}
+              name: {{ printf "%s.%s.credentials" .db.username .db.host }}
               key: password
-        - name: ELOGGER_DBPORT
-          value: {{ .Values.elogger.db.port | quote }}
+        - name: ELOGGER_DSN
+          value: >-
+            user={{ .db.username }}
+            password=$(ELOGGER_DBPASS)
+            host={{ .db.host }}
+            dbname={{ .db.dbname }}
         - name: ELOGGER_TABLE
-          value: {{ .Values.elogger.db.table }}
+          value: {{ .table | default ($.Release.Name
+            | trimPrefix (print $.Chart.Name "-")) }}
         command:
           - sh
           - -c 
@@ -219,7 +212,7 @@ spec:
         volumeMounts:
         - mountPath: /tmp/elogger
           name: elogger
-      {{- end }}
+      {{- end }}{{ end }}
       {{- if .Values.smtpgate.enabled }}
       - name: smtp
         image: boky/postfix:{{ .Values.smtpgate.imageVersion }}
