@@ -1,6 +1,15 @@
 {{- define "etripCronjob" }}
 {{- $db := mergeOverwrite .global.Values.db ( .global.Values.db.operator_install | default dict ) -}}
 {{- $clusterName := include "clusterName" .global -}}
+{{- $createSecretsVolume := false }}
+{{- $createSecretsVolume = or $createSecretsVolume (eq $db.provider "cnpg") }}
+{{- $createSecretsVolume = or $createSecretsVolume (
+      and .global.Values.etrip.searchlogs.enabled 
+      (eq .global.Values.etrip.searchlogs.provider "cnpg") ) }}
+{{- $createSecretsVolumeMount := $createSecretsVolume }}
+{{- $createSecretsVolume = or $createSecretsVolume (
+      and .global.Values.elogger.enabled
+      (eq .global.Values.elogger.db.provider "cnpg") ) }}
 kind: CronJob
 apiVersion: batch/v1
 metadata:
@@ -35,23 +44,51 @@ spec:
               subPath: etrip
             - mountPath: /tmp/elogger
               name: elogger
+            {{- if $createSecretsVolumeMount }}
+            - mountPath: /secrets
+              name: secrets
+              readOnly: true
+            {{- end }}
             env:
+            - name: ETRIP_CONFIG
+              value: /config
+            {{- if eq $db.provider "zalando" }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: 
                   name: etrip. {{- $clusterName -}} .credentials
                   key: password
-            - name: ETRIP_CONFIG
-              value: /config
             - name: ETRIP_DSN
-              value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                  {{- $clusterName }}
+              value: >-
+                user=etrip
+                password=$(DB_PASSWORD)
+                host={{ $clusterName }}
             {{- if gt (int .global.Values.replicas.db) 1 }}
             - name: ETRIP_DSN_RO
-              value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-                {{- $clusterName }}-repl connect_timeout=1
+              value: >-
+                user=etrip
+                password=$(DB_PASSWORD)
+                host={{ $clusterName }}-repl
+                connect_timeout=1
+            {{- end }}
+            {{- else if eq $db.provider "cnpg" }}
+            - name: ETRIP_DSN
+              value: >-
+                user=etrip
+                host={{ .Release.Name }}-db-rw
+                sslcert=/tmp/secrets/app-tls/tls.crt
+                sslkey=/tmp/secrets/app-tls/tls.key
+                sslrootcert=/tmp/secrets/app-tls/ca.crt
+            - name: ETRIP_DSN_RO
+              value: >-
+                user=etrip
+                host={{ .Release.Name }}-db-r
+                sslcert=/tmp/secrets/app-tls/tls.crt
+                sslkey=/tmp/secrets/app-tls/tls.key
+                sslrootcert=/tmp/secrets/app-tls/ca.crt
             {{- end }}
             {{- with .global.Values.etrip.searchlogs -}}{{- if .enabled }}
+            {{- if eq .provider "zalando" }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
@@ -63,6 +100,16 @@ spec:
                 user={{ .username }}
                 dbname={{ .dbname }}
                 host={{ .host }}
+            {{- else if eq .provider "cnpg" }}
+            - name: ETRIP_SEARCHLOGS_DSN
+              value: >-
+                user={{ .username }}
+                dbname={{ .dbname }}
+                host={{ .host }}
+                sslcert=/tmp/secrets/searchlogs-tls/tls.crt
+                sslkey=/tmp/secrets/searchlogs-tls/tls.key
+                sslrootcert=/tmp/secrets/searchlogs-tls/ca.crt
+            {{- end }}
             - name: ETRIP_SEARCHLOGS_TABLE
               value: {{ .table | default ($.global.Release.Name
                 | trimPrefix (print $.global.Chart.Name "-")) }}
@@ -87,6 +134,10 @@ spec:
               - /bin/sh
               - -c
               - |
+                {{- if $createSecretsVolumeMount }}
+                cp -r /secrets /tmp/secrets
+                find /tmp/secrets -name '*.key' -exec chmod 600 {} \;
+                {{- end }}
                 {{- .cron.command | toString | nindent 16 }}
                 touch /tmp/elogger/elogger.done
           {{- if and .global.Values.elogger.enabled (not .cron.nologs ) }}
@@ -97,6 +148,7 @@ spec:
             env:
             - name: ELOGGER_DIR
               value: /tmp/elogger
+            {{- if eq .db.provider "zalando" }}
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
@@ -108,6 +160,13 @@ spec:
                 password=$(ELOGGER_DBPASS)
                 host={{ .db.host }}
                 dbname={{ .db.dbname }}
+            {{- else if eq .db.provider "cnpg" }}
+            - name: ELOGGER_DSN
+              value: >-
+                user={{ .db.username }}
+                host={{ .db.host }}
+                dbname={{ .db.dbname }}
+            {{- end }}
             - name: ELOGGER_TABLE
               value: {{ .table | default ($.global.Release.Name
                 | trimPrefix (print $.global.Chart.Name "-")) }}
@@ -126,6 +185,17 @@ spec:
             volumeMounts:
             - mountPath: /tmp/elogger
               name: elogger
+            {{- if eq .db.provider "cnpg" }}
+            - mountPath: /root/.postgresql/postgresql.crt
+              name: secrets
+              subPath: elogger-tls/tls.crt
+            - mountPath: /root/.postgresql/postgresql.key
+              name: secrets
+              subPath: elogger-tls/tls.key
+            - mountPath: /root/.postgresql/root.crt
+              name: secrets
+              subPath: elogger-tls/ca.crt
+            {{- end }}
           {{- end }}{{ end }}
           volumes:
           - name: config
@@ -140,6 +210,48 @@ spec:
               {{- end }}
           - name: elogger
             emptyDir: {}
+          {{- if $createSecretsVolume }}
+          - name: secrets
+            projected:
+              sources:
+              {{- if eq $db.provider "cnpg" }}
+              - secret:
+                  name: {{ .Release.Name }}-db-app-tls
+                  items:
+                  - key: tls.crt
+                    path: app-tls/tls.crt
+                  - key: tls.key
+                    path: app-tls/tls.key
+                  - key: ca.crt
+                    path: app-tls/ca.crt
+              {{- end }}
+              {{- with .global.Values.etrip.searchlogs }}
+              {{- if and .enabled (eq .provider "cnpg") }}
+              - secret:
+                  name: {{ .certificate }}
+                  items:
+                  - key: tls.crt
+                    path: searchlogs-tls/tls.crt
+                  - key: tls.key
+                    path: searchlogs-tls/tls.key
+                  - key: ca.crt
+                    path: searchlogs-tls/ca.crt
+              {{- end }}{{ end }}
+              {{- with .global.Values.elogger }}
+              {{- if and .enabled (eq .db.provider "cnpg") }}
+              - secret:
+                  name: {{ .db.certificate }}
+                  items:
+                  - key: tls.crt
+                    path: elogger-tls/tls.crt
+                  - key: tls.key
+                    path: elogger-tls/tls.key
+                    # mode 0600
+                    mode: 384
+                  - key: ca.crt
+                    path: elogger-tls/ca.crt
+              {{- end }}{{ end }}
+          {{- end }}
 {{- end }}
 {{- range .Values.cron -}}
 {{- include "etripCronjob" (dict "cron" . "global" $ ) }}

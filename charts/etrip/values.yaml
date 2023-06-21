@@ -89,10 +89,13 @@ etrip:
   other_slow_urls: []
   searchlogs:
     enabled: false
+    provider: zalando # or cnpg
     table: null
     host: searchlogs-cluster
     username: searchlogs
     dbname: searchlogs
+    ## CNPG specific:
+    #certificate: searchlogs-app-tls
   priority_api_users: []
   config: 
     install_id: default
@@ -646,9 +649,12 @@ elogger:
   enabled: false
   table: null
   db:
+    provider: zalando # or cnpg
     host: elogger-cluster
     username: elogger
     dbname: elogger
+    ## CNPG specific:
+    #certificate: elogger-app-tls
 
   image:
     pullPolicy: IfNotPresent
@@ -798,7 +804,9 @@ cron: []
 #   failedHistory: 1
 #   resources: {} 
 
-db: 
+db:
+  provider: zalando # cnpg or zalando
+
   dbParameters:
     max_connections: "20"
     shared_buffers: 1GB
@@ -818,23 +826,260 @@ db:
     log_disconnections: "off"
     log_min_duration_statement: "5000"
     log_statement: "none"
-    log_rotation_age: "1d"
-    log_rotation_size: "10240"
   dbVolume:
     size: 5Gi
+    # storageClass: standard
+    ## CNPG only:
+    # resizeInUseVolumes: true
+    # pvcTemplate: {}
+
+  ## CNPG specific:
+  image:
+    pullPolicy: IfNotPresent
+    registry: ghcr.io/cloudnative-pg
+    name: postgresql
+    tag: 11.20-debian
+  
+  ## CNPG specific:
+  generateIssuer: true
+    # true: generate a CA cert using provided caIssuer
+    # false: use provided caIssuer as CA; as such, must not be a self-signing issuer
+  caIssuer:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: selfsigned
+
+  # CNPG value templates
+  # These are injected directly into the CNPG cluster config so for really
+  # specific overrides you can redefine these
+  # Alternatively, there are overlay dictionaries under .db.overrides
+  # these allow you to override very specific rendered values without
+  # redefining the whole template
+  template: |
+    {{- define "etrip.db.template.objectStore" }}
+    {{- if .url }}
+    endpointURL: {{ .url }}
+    {{- end }}{{/* .url */}}
+    destinationPath: {{ .path }}
+    {{- if .serverName }}
+    serverName: {{ .serverName }}
+    {{- end }}{{/* .serverName */}}
+    s3Credentials:
+      accessKeyId:
+        name: {{ .secretName | default "s3-storage-secret" }}
+        key: {{ .accessKey | default "ACCESS_KEY" }}
+      secretAccessKey:
+        name: {{ .secretName | default "s3-storage-secret" }}
+        key: {{ .secretKey | default "SECRET_KEY" }}
+      region:
+        name: {{ .secretName | default "s3-storage-secret" }}
+        key: {{ .regionKey | default "REGION" }}
+    wal:
+      compression: gzip
+      encryption: AES256
+    data:
+      compression: gzip
+      encryption: AES256
+    {{- end }}{{/* define "etrip.db.template.objectStore" */}}
+
+    {{- if eq .db.bootstrap.mode "transition" }}
+    {{/* transition mode is very particular so we have a dedicated section */}}
+    {{- $phase := .db.bootstrap.transitionPhase }}
+    bootstrap:
+      pg_basebackup:
+        database: etrip
+        source: zalando
+    {{- if or (eq $phase "standby") (eq $phase "standby_fence") }}
+    replica:
+      enabled: true
+      source: zalando
+    {{- end }}{{/* $phase is standby */}}
+    externalClusters:
+    - name: zalando
+      connectionParameters:
+        host: {{ .Release.Name }}-cluster
+        user: standby
+      password:
+        name: standby.{{ .Release.Name }}-cluster.credentials
+        key: password
+    {{- else }}{{/* .db.bootstrap.mode != "transition" */}}
+    bootstrap:
+      {{- if eq .db.bootstrap.mode "normal" }}
+      initdb:
+        database: etrip
+        owner: etrip
+        localeCType: en_US.UTF-8
+        localeCollate: en_US.UTF-8
+        postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+        - CREATE EXTENSION IF NOT EXISTS "pgcrypto"
+        - CREATE EXTENSION IF NOT EXISTS "earthdistance" CASCADE
+      {{- else if eq .db.bootstrap.mode "recovery" }}
+      recovery:
+        database: etrip
+        {{- with .db.bootstrap.recovery.recoveryTarget }}
+        recoveryTarget: {{ . | toYaml | nindent 8 }}
+        {{- end }}{{/* with .db.bootstrap.recovery.recoveryTarget */}}
+        {{- if eq .db.bootstrap.recovery.source "objectstore" }}
+        source: bootstrap
+    externalClusters:
+    - name: bootstrap
+      {{ $s3 := mergeOverwrite (deepCopy .db.backup.s3) ( .db.bootstrap.recovery.s3Override | default dict ) }}
+      barmanObjectStore: {{ include "etrip.db.template.objectStore" $s3 | nindent 8 }}
+        {{- else if eq .db.bootstrap.recovery.source "backup" }}
+        backup: {{ .db.bootstrap.recovery.backupName }}
+        {{- end }}{{/* .db.bootstrap.recovery.source == backup */}}
+      {{- else if eq .db.bootstrap.mode "clone" }}
+      pg_basebackup:
+        database: etrip
+        source: bootstrap
+    externalClusters:
+    - name: bootstrap
+      {{- if eq .db.bootstrap.clone.source "peer" }}
+      connectionParameters:
+        host: {{ .db.bootstrap.clone.name | default .Release.Name }}-db-r.{{ .db.bootstrap.clone.namespace | default .Release.Namespace }}
+        user: streaming_replica
+      {{- if .db.bootstrap.clone.namespace }}
+      sslKey:
+        name: {{ default .Release.Name }}-db-clone-tls
+        key: tls.key
+      sslCert:
+        name: {{ default .Release.Name }}-db-clone-tls
+        key: tls.crt
+      rootCert:
+        name: {{ default .Release.Name }}-db-clone-tls
+        key: ca.crt
+      {{- else }}{{/* no namespace */}}
+      sslKey:
+        name: {{ .db.bootstrap.clone.name }}-db-replica-tls
+        key: tls.key
+      sslCert:
+        name: {{ .db.bootstrap.clone.name }}-db-replica-tls
+        key: tls.crt
+      rootCert:
+        name: {{ .db.bootstrap.clone.name }}-db-replica-tls
+        key: ca.crt
+      {{- end }}{{/* clone.namespace */}}
+      {{- else if eq .db.bootstrap.clone.source "cluster" }}
+      {{ .db.bootstrap.clone.cluster | toYaml | nindent 2 }}
+      {{- end }}{{/* clone.source == cluster */}}
+      {{- end }}{{/* bootstrap.mode == clone */}}
+    {{ if .db.bootstrap.standby }}
+    replica:
+      enabled: true
+      source: bootstrap
+    {{- end }}{{/* bootstrap.standby */}}
+    {{- end }}{{/* bootstrap.mode != transition */}}
+
+    {{- with .db.backup }}
+    {{- if .s3.enabled }}
+    backup:
+      retentionPolicy: {{ .retentionPolicy | default "90d" }}
+      target: {{ .target | default "prefer-standby" }}
+      barmanObjectStore: {{ include "etrip.db.template.objectStore" .s3 | nindent 4 }}
+    {{- end }}
+    {{- end }}
+
+  overrides: null
+  ## directly override rendered template values here
+
+  bootstrap: 
+    mode: normal
+    ## * normal: bootstrap a new cluster
+    ## * recovery: recover a cluster from a backup
+    ## * clone: clone a live cluster
+    ## * transition: transition a cluster from zalando to CNPG, observing transitionPhase
+    recovery:
+      source: objectstore
+      ## * objectStore: recover from the object store as defined under backup.s3,
+      ## * with the overrides under recovery.s3Overrides when defined
+      ## * backup: recover from a backup CRD, defined under recovery.backupName
+      # s3Overrides:
+      #   url: https://s3.eu-central-1.wasabisys.com
+      #   path: s3://k8s-test/cnpg
+      #   secretName: wasabi-secret
+      # backupName: <backup-name>
+      ## recovery target as defined in CNPG docs
+      # recoveryTarget:
+      #   backupID: <backup-id>
+      #   targetTLI: <timeline>
+      #   targetLSN: <LSN>
+      #   targetTime: <timestamp>
+      #   targetXID: <xid>
+      #   targetName: <name>
+      #   targetImmediate: true|false
+      #   exclusive: true|false
+    clone:
+      source: peer
+      ## * peer - clone from another etrip install with a CNPG operated cluster
+      ##      at least one of namespace or name need to be defined
+      ##      if cross-namespace cloning, mirror the replica-tls secret
+      ## * cluster - clone from a custom cluster fully defined under clone.cluster
+      # namespace: production
+      # name: <etrip-install-name>
+      # cluster: 
+      #   connectionParameters:
+      #     host: <hostname>
+      #     user: <replication-user>
+      #     sslMode: [disable|require|verify-ca|verify-full]
+      #   password:
+      #     name: <secret-name>
+      #     key: <secret-key>
+      #   sslKey:
+      #     name: <secret-name>
+      #     key: <secret-key>
+      #   sslCert:
+      #     name: <secret-name>
+      #     key: <secret-key>
+      #   sslRootCert:
+      #     name: <secret-name>
+      #     key: <secret-key>
+
+    transitionPhase: standby_fence
+    # one of: 
+    # - "standby_fence" - CNPG initiates a clone from zalando, puts it in 
+    #   fenced mode and waits for operator intervention
+    #   Operator needs to execute cleanup.sh script and then set 
+    #   .transitionPhase to "standby"
+    # - "standby" - Assumes that previous phase was "standby_fence" and that 
+    #   cleanup.sh was executed. Fence will be removed.
+    # - "full" - Assumes that previous phase was standby or standby_fence and
+    #   that cleanup.sh was executed. Fence will be removed and standby will be
+    #   promoted to master, new timeline will be created.
+    # While transitioning both databases will coexist. Provider will dictate which 
+    # database is used by the application. You can switch provider while 
+    # transitioning after unfencing, or you can switch it after fully 
+    # transitioning. Once .transitionPhase is set back to null the other 
+    # operator's database will be purged!
+    
+    standby: false
+    ## creates a standby cluster using the same source as the clone or recovery
+
+  backup:
+    schedule: null # set to cron spec string to enable scheduled backups
+    s3:
+      enabled: false
+      url: https://s3.eu-central-1.wasabisys.com
+      path: s3://k8s-test/cnpg
+      secretName: wasabi-creds
+
+  # allowCloneFrom: <namespace>
+
+  ## Zalando specific:
   # clone: 
-  #   cluster: master
-  #   namespace: ns
+  #   cluster: <cluster-name>
+  #   namespace: <namespace>
   # refresh: 10 2 * * *
-  # allowCloneFrom: ns
   standby:
     enabled: false
     bucket: k8s-pg-wal
     uid: null
+
   # don't override operator defaults
   resources: {}
   exporter:
     enabled: false
+    # zalando specific
     image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
     extraQueries:
       pg_replication:

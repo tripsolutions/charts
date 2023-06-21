@@ -1,5 +1,14 @@
 {{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
 {{- $clusterName := include "clusterName" $ -}}
+{{- $createSecretsVolume := false }}
+{{- $createSecretsVolume = or $createSecretsVolume (eq $db.provider "cnpg") }}
+{{- $createSecretsVolume = or $createSecretsVolume (
+      and .Values.etrip.searchlogs.enabled 
+      (eq .Values.etrip.searchlogs.provider "cnpg") ) }}
+{{- $createSecretsVolumeMount := $createSecretsVolume -}}
+{{- $createSecretsVolume = or $createSecretsVolume (
+      and .Values.elogger.enabled
+      (eq .Values.elogger.db.provider "cnpg") ) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,32 +37,68 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
       initContainers:
+      {{/* 
+        no migrations if standby mode
+
+      */}}
+      {{- if or 
+            (and (eq $db.provider "zalando") ( not $db.standby.enabled ))
+            (and (eq $db.provider "cnpg") ( not
+                (or $db.bootstrap.standby
+                  (and (eq $db.bootstrap.mode "transition") 
+                       (eq $db.bootstrap.transitionPhase "standby"))
+                )))
+         }}
       - name: migrations
         {{- include "etripImage" . | nindent 8 }}
-        command: [ /var/www/localhost/migrate ]
+        {{- if $createSecretsVolumeMount }}
+        command:
+          - sh
+          - -c
+          - |
+            cp -r /secrets /tmp/secrets
+            find /tmp/secrets -name '*.key' -exec chmod 600 {} \;
+            /var/www/localhost/migrate
+        {{- else }}
+        command: [ "/var/www/localhost/migrate" ]
+        {{- end }}
         volumeMounts:
         - mountPath: /config
           name: config
           subPath: etrip
         - mountPath: /tmp/elogger
           name: elogger
+        {{- if $createSecretsVolumeMount }}
+        - mountPath: /secrets
+          name: secrets
+          readOnly: true
+        {{- end }}
         env:
+        - name: ETRIP_CONFIG
+          value: /config
+        {{- if eq $db.provider "zalando" }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
               name: etrip. {{- $clusterName -}} .credentials
               key: password
-        - name: ETRIP_CONFIG
-          value: /config
         - name: ETRIP_DSN
-          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- $clusterName }}
-        - name: ETRIP_LOGDIR
-          value: /tmp/elogger
-        - name: ETRIP_VERSION
-          value: {{ .Values.version | quote }}
+          value: >-
+            user=etrip
+            password=$(DB_PASSWORD)
+            host={{ $clusterName }}
+        {{- else if eq $db.provider "cnpg" }}
+        - name: ETRIP_DSN
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-rw
+            sslcert=/secrets/app-tls/tls.crt
+            sslkey=/tmp/secrets/app-tls/tls.key
+            sslrootcert=/secrets/app-tls/ca.crt
+        {{- end }}
         resources:
           {{- toYaml .Values.resources.migrate | nindent 10 }}
+      {{- end }}
       {{ if .Values.frontends.enabled}}
       - name: copy-frontends
         {{- include "frontendsImage" . | nindent 8 }}
@@ -67,7 +112,17 @@ spec:
       {{- end}}
       containers:
       - name: etrip
-        command: [ supervisord, -n, -c, /config/supervisor.conf ]
+        {{- if $createSecretsVolumeMount }}
+        command:
+          - sh
+          - -c
+          - |
+            cp -r /secrets /tmp/secrets
+            find /tmp/secrets -name '*.key' -exec chmod 600 {} \;
+            supervisord -n -c /config/supervisor.conf
+        {{- else }}
+        command: [ "supervisord", "-n", "-c", "/config/supervisor.conf" ]
+        {{- end }}
         {{- include "etripImage" . | nindent 8 }}
         livenessProbe:
           httpGet:
@@ -85,21 +140,48 @@ spec:
         - mountPath: /frontends
           name: frontends
         {{- end}}
+        {{- if $createSecretsVolumeMount }}
+        - mountPath: /secrets
+          name: secrets
+          readOnly: true
+        {{- end }}
         env:
+        - name: ETRIP_CONFIG
+          value: /config
+        {{- if eq $db.provider "zalando" }}
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: 
               name: etrip. {{- $clusterName -}} .credentials
               key: password
-        - name: ETRIP_CONFIG
-          value: /config
         - name: ETRIP_DSN
-          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- $clusterName }}
+          value: >-
+            user=etrip
+            password=$(DB_PASSWORD)
+            host={{ $clusterName }}
         {{- if gt (int .Values.replicas.db) 1 }}
         - name: ETRIP_DSN_RO
-          value: sslmode=disable user=etrip password=$(DB_PASSWORD) host=
-            {{- $clusterName }}-repl connect_timeout=1
+          value: >-
+            user=etrip
+            password=$(DB_PASSWORD)
+            host={{ $clusterName }}-repl
+            connect_timeout=1
+        {{- end }}
+        {{- else if eq $db.provider "cnpg" }}
+        - name: ETRIP_DSN
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-rw
+            sslcert=/secrets/app-tls/tls.crt
+            sslkey=/tmp/secrets/app-tls/tls.key
+            sslrootcert=/secrets/app-tls/ca.crt
+        - name: ETRIP_DSN_RO
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-r
+            sslcert=/secrets/app-tls/tls.crt
+            sslkey=/tmp/secrets/app-tls/tls.key
+            sslrootcert=/secrets/app-tls/ca.crt
         {{- end }}
         {{- if .Values.etrip.use_redis }}
         - name: REDIS_SECRET
@@ -109,6 +191,7 @@ spec:
               key: session
         {{- end }}
         {{- with .Values.etrip.searchlogs -}}{{- if .enabled }}
+        {{- if eq .provider "zalando" }}
         - name: SEARCHLOGS_DBPASSWORD
           valueFrom:
             secretKeyRef:
@@ -120,6 +203,16 @@ spec:
             user={{ .username }}
             dbname={{ .dbname }}
             host={{ .host }}
+        {{- else if eq .provider "cnpg" }}
+        - name: ETRIP_SEARCHLOGS_DSN
+          value: >-
+            user={{ .username }}
+            dbname={{ .dbname }}
+            host={{ .host }}
+            sslcert=/secrets/searchlogs-tls/tls.crt
+            sslkey=/tmp/secrets/searchlogs-tls/tls.key
+            sslrootcert=/secrets/searchlogs-tls/ca.crt
+        {{- end }}
         - name: ETRIP_SEARCHLOGS_TABLE
           value: {{ .table | default ($.Release.Name
             | trimPrefix (print $.Chart.Name "-")) }}
@@ -128,15 +221,15 @@ spec:
           value: /tmp/elogger
         - name: ETRIP_VERSION
           value: {{ .Values.version | quote }}
-        {{ if .Values.smtpgate.enabled -}}
+        {{- if .Values.smtpgate.enabled }}
         - name: ETRIP_SMTP_HOST
           value: localhost
-        {{ end -}}
+        {{- end }}
         ports:
         - containerPort: 8080
           name: etrip
           protocol: TCP
-        {{ $port := 5000 }}
+        {{- $port := 5000 }}
         {{- range $key, $instance := .Values.b2b }}
         - containerPort: {{ $port }}{{ $port = add $port 1 }}
           name: b2b-server-{{ $key }}
@@ -179,14 +272,15 @@ spec:
         {{- end }}
         command: [ nginx, -c, /config/nginx.conf ]
       {{- end }}
-      {{- if .Values.elogger.enabled }}
       {{- with .Values.elogger }}
+      {{- if .enabled }}
       - name: sendlogs
         image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
         imagePullPolicy: {{ .image.pullPolicy }}
         env:
         - name: ELOGGER_DIR
           value: /tmp/elogger
+        {{- if eq .db.provider "zalando"}}
         - name: ELOGGER_DBPASS
           valueFrom:
             secretKeyRef: 
@@ -198,6 +292,13 @@ spec:
             password=$(ELOGGER_DBPASS)
             host={{ .db.host }}
             dbname={{ .db.dbname }}
+        {{- else if eq .db.provider "cnpg" }}
+        - name: ELOGGER_DSN
+          value: >-
+            user={{ .db.username }}
+            dbname={{ .db.dbname }}
+            host={{ .db.host }}
+        {{- end }}
         - name: ELOGGER_TABLE
           value: {{ .table | default ($.Release.Name
             | trimPrefix (print $.Chart.Name "-")) }}
@@ -212,6 +313,17 @@ spec:
         volumeMounts:
         - mountPath: /tmp/elogger
           name: elogger
+        {{- if eq .db.provider "cnpg" }}
+        - mountPath: /root/.postgresql/postgresql.crt
+          name: secrets
+          subPath: elogger-tls/tls.crt
+        - mountPath: /root/.postgresql/postgresql.key
+          name: secrets
+          subPath: elogger-tls/tls.key
+        - mountPath: /root/.postgresql/root.crt
+          name: secrets
+          subPath: elogger-tls/ca.crt
+        {{- end }}
       {{- end }}{{ end }}
       {{- if .Values.smtpgate.enabled }}
       - name: smtp
@@ -271,6 +383,48 @@ spec:
           - key: b2b-{{$b2bkey}}.json
             path: etrip/b2b-{{$b2bkey}}.json
           {{ end }}
+      {{- if $createSecretsVolume }}
+      - name: secrets
+        projected:
+          sources:
+          {{- if eq $db.provider "cnpg" }}
+          - secret:
+              name: {{ .Release.Name }}-db-app-tls
+              items:
+              - key: tls.crt
+                path: app-tls/tls.crt
+              - key: tls.key
+                path: app-tls/tls.key
+              - key: ca.crt
+                path: app-tls/ca.crt
+          {{- end }}
+          {{- with .Values.etrip.searchlogs }}
+          {{- if and .enabled (eq .provider "cnpg") }}
+          - secret:
+              name: {{ .certificate }}
+              items:
+              - key: tls.crt
+                path: searchlogs-tls/tls.crt
+              - key: tls.key
+                path: searchlogs-tls/tls.key
+              - key: ca.crt
+                path: searchlogs-tls/ca.crt
+          {{- end }}{{ end}}
+          {{- with .Values.elogger }}
+          {{- if and .enabled (eq .db.provider "cnpg") }}
+          - secret:
+              name: {{ .db.certificate }}
+              items:
+              - key: tls.crt
+                path: elogger-tls/tls.crt
+              - key: tls.key
+                path: elogger-tls/tls.key
+                # mode 0600
+                mode: 384
+              - key: ca.crt
+                path: elogger-tls/ca.crt
+          {{- end }}{{ end }}
+      {{- end }}
       - name: elogger
         emptyDir: {}
       {{- if .Values.frontends.enabled}}
