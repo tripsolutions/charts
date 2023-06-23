@@ -183,6 +183,8 @@ spec:
     clientCASecret: {{ .Release.Name }}-db-cert
     {{- end }}
     replicationTLSSecret: {{ .Release.Name }}-db-replica-tls
+  shared_preload_libraries:
+  - pg_cron
   postgresql:
     pg_hba:
     - hostssl etrip all all cert

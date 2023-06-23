@@ -826,6 +826,10 @@ db:
     log_disconnections: "off"
     log_min_duration_statement: "5000"
     log_statement: "none"
+    cron.database_name: etrip
+    cron.use_background_workers: 'true'
+    max_standby_archive_delay: 300s
+    max_standby_streaming_delay: 300s
   dbVolume:
     size: 5Gi
     # storageClass: standard
@@ -836,9 +840,9 @@ db:
   ## CNPG specific:
   image:
     pullPolicy: IfNotPresent
-    registry: ghcr.io/cloudnative-pg
+    registry: ghcr.io/tripsolutions
     name: postgresql
-    tag: 11.20-debian
+    tag: 11.20-cron
   
   ## CNPG specific:
   generateIssuer: true
