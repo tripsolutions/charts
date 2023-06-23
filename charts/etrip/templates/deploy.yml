@@ -37,10 +37,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
       initContainers:
-      {{/* 
-        no migrations if standby mode
-
-      */}}
+      {{- /* no migrations if standby mode */}}
       {{- if or 
             (and (eq $db.provider "zalando") ( not $db.standby.enabled ))
             (and (eq $db.provider "cnpg") ( not
@@ -99,7 +96,7 @@ spec:
         resources:
           {{- toYaml .Values.resources.migrate | nindent 10 }}
       {{- end }}
-      {{ if .Values.frontends.enabled}}
+      {{- if .Values.frontends.enabled }}
       - name: copy-frontends
         {{- include "frontendsImage" . | nindent 8 }}
         volumeMounts:

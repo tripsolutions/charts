@@ -1063,6 +1063,39 @@ db:
       path: s3://k8s-test/cnpg
       secretName: wasabi-creds
 
+  ## CNPG specific: affinity rules
+  ## See CNPG docs for details: 
+  ## https://cloudnative-pg.io/documentation/1.20/api_reference/#affinityconfiguration
+  ## example:
+  # affinity: 
+  #   enablePodAntiAffinity: true
+  #   topologyKey: kubernetes.io/hostname
+  #   nodeSelector:
+  #     kubernetes.io/postgres.prod: "true"
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: kubernetes.io/postgres.prod
+  #           operator: In
+  #           values:
+  #           - "true"
+  #   tolerations:
+  #   - key: "node-role.kubernetes.io/master"
+  #     operator: "Exists"
+  #     effect: "NoSchedule"
+  #   - key: "node.kubernetes.io/not-ready"
+  #     operator: "Exists"
+  #     effect: "NoExecute"
+  #   - key: "node.kubernetes.io/unreachable"
+  #     operator: "Exists"
+  #     effect: "NoExecute"
+  #   podAntiAffinityType: required
+  #   additionalPodAntiAffinity: []
+  #   additionalPodAffinity: []
+
+  affinity: null
+
   # allowCloneFrom: <namespace>
 
   ## Zalando specific:
