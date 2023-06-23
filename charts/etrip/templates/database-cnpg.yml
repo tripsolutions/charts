@@ -183,12 +183,12 @@ spec:
     clientCASecret: {{ .Release.Name }}-db-cert
     {{- end }}
     replicationTLSSecret: {{ .Release.Name }}-db-replica-tls
-  shared_preload_libraries:
-  - pg_cron
   postgresql:
     pg_hba:
     - hostssl etrip all all cert
     parameters: {{ toYaml $db.dbParameters | nindent 6}}
+    shared_preload_libraries:
+    - pg_cron
   {{- with $db.resources }}
   resources: {{ toYaml . | nindent 4 }}
   {{- end }}
