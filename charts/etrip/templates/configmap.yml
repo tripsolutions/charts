@@ -225,14 +225,8 @@ data:
           include /etc/nginx/fastcgi.conf;
 
           location /server {
-            location ~ \.php {
-              fastcgi_pass b2b-{{ $key }};
-            }
-
-            # cache requests for files, URLs: 
-            # - /server/get_file.php
-            # - /server/get_image.php
-            location ~ ^/server/(get_file|get_image)\.php$ {
+            # cache requests for /server/get_image.php
+            location ~ ^/server/get_image\.php$ {
               fastcgi_cache cache;
               fastcgi_cache_valid 200 60m;
               fastcgi_cache_methods GET HEAD;
@@ -246,6 +240,10 @@ data:
               }
 
               fastcgi_cache_key "custom/files/$cache_key";
+              fastcgi_pass b2b-{{ $key }};
+            }
+
+            location ~ \.php {
               fastcgi_pass b2b-{{ $key }};
             }
           }
