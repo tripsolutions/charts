@@ -71,6 +71,7 @@ etrip:
         <<: *phpValues
   nginx:
     workers: 2
+    connections: 1024
   passwords: {}
   #  user: $apr1$foobar
   trusted_ips:

@@ -64,10 +64,11 @@ data:
     include /etc/nginx/modules-enabled/*.conf;
     daemon off;
     events {
-      worker_connections 512;
+      worker_connections {{ .Values.etrip.nginx.connections | default 1024 }};
     }
 
     http {
+      fastcgi_cache_path /tmp/nginx-cache/ levels=1:2 keys_zone=cache:10m inactive=60m;
       include /etc/nginx/mime.types;
       default_type application/octet-stream;
 
@@ -114,80 +115,94 @@ data:
       }
 
       upstream webapp {
-          server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=64 fail_timeout=1s;
       }
 
       upstream webservice {
-          server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=64 fail_timeout=1s;
       }
 
       upstream webservice_prio {
-          server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=64 fail_timeout=1s;
       }
 
       upstream background {
-          server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
       }
 
       server {
-          listen *:8080;
-          server_name localhost;
-          root /var/www/localhost/webapp;
-          location @404 { internal; }
-          index index.php index.html;
-          
-          {{- if ne (len .Values.etrip.passwords) 0 }}
-          set $auth_realm "etrip backend";
-          if ($trusted != 0) {
-              set $auth_realm off;
+        listen *:8080;
+        server_name localhost;
+        root /var/www/localhost/webapp;
+        location @404 { internal; }
+        index index.php index.html;
+        
+        {{- if ne (len .Values.etrip.passwords) 0 }}
+        set $auth_realm "etrip backend";
+        if ($trusted != 0) {
+          set $auth_realm off;
+        }
+        auth_basic $auth_realm;
+        auth_basic_user_file /config/htpasswd;
+        {{- end }}
+
+        fastcgi_split_path_info ^(.+\.php)(.*)$;
+        fastcgi_index index.php;
+        fastcgi_intercept_errors off;
+        error_page 404 @404;
+        include /etc/nginx/fastcgi.conf;
+
+        location @slow {
+          fastcgi_read_timeout 300s;
+          fastcgi_connect_timeout 300s;
+          fastcgi_send_timeout 300s; 
+          fastcgi_pass background;
+        }
+
+        location / {
+          location /api {
+            try_files $uri /apiv2/index.php$is_args$args;
           }
-          auth_basic $auth_realm;
-          auth_basic_user_file /config/htpasswd;
-          {{- end }}
+          location ~ \.php {
+            error_page 418 = @slow;
+            fastcgi_pass webapp;
 
-          fastcgi_split_path_info ^(.+\.php)(.*)$;
-          fastcgi_index index.php;
-          fastcgi_intercept_errors off;
-          error_page 404 @404;
-          include /etc/nginx/fastcgi.conf;
-
-          location @slow {
-              fastcgi_read_timeout 300s;
-              fastcgi_connect_timeout 300s;
-              fastcgi_send_timeout 300s; 
-              fastcgi_pass background;
-          }
-
-          location / {
-            location /api {
-              try_files $uri /apiv2/index.php$is_args$args;
-            }
-            location ~ \.php {
-                error_page 418 = @slow;
-                fastcgi_pass webapp;
-
-                location ~ ^/(wscsv|file)\.php {
-                    auth_basic off;
-                    fastcgi_pass webapp;
-                }
-
-                location ~ ^/(ws|json|apiv2/index)\.php {
-                    auth_basic off;
-                    fastcgi_pass $webservice;
-                }
-
-                if ($slow = 1) {
-                    return 418;
-                }
-            }
-          }
-
-          location ~ ^/(status|ping)$ {
-              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-              fastcgi_index index.php;
-              include /etc/nginx/fastcgi_params;
+            location ~ ^/wscsv\.php$ {
+              auth_basic off;
               fastcgi_pass webapp;
+            }
+
+            # cache requests for files, URLs: /file.php?file=<id>
+            # and turn auth basic off for them
+            location ~ ^/file\.php$ {
+              auth_basic off;
+              fastcgi_cache cache;
+              fastcgi_cache_valid 200 60m;
+              fastcgi_cache_methods GET HEAD;
+              fastcgi_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+              add_header X-Cache $upstream_cache_status;
+              fastcgi_cache_key "custom/files/$arg_file";
+
+              fastcgi_pass webapp;
+            }
+
+            location ~ ^/(ws|json|apiv2/index)\.php {
+              auth_basic off;
+              fastcgi_pass $webservice;
+            }
+
+            if ($slow = 1) {
+              return 418;
+            }
           }
+        }
+
+        location ~ ^/(status|ping)$ {
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_index index.php;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_pass webapp;
+        }
       }
 
       {{ $port := 5000 }}
@@ -210,9 +225,29 @@ data:
           include /etc/nginx/fastcgi.conf;
 
           location /server {
-              location ~ \.php {
-                fastcgi_pass b2b-{{ $key }};
+            location ~ \.php {
+              fastcgi_pass b2b-{{ $key }};
+            }
+
+            # cache requests for files, URLs: 
+            # - /server/get_file.php
+            # - /server/get_image.php
+            location ~ ^/server/(get_file|get_image)\.php$ {
+              fastcgi_cache cache;
+              fastcgi_cache_valid 200 60m;
+              fastcgi_cache_methods GET HEAD;
+              fastcgi_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+              add_header X-Cache $upstream_cache_status;
+              # vary cache key, depending on if $arg_width exists
+              set $cache_key $arg_file;
+              if ($arg_width) {
+                # cannot use fastcgi_cache_key in conditional; set variable
+                set $cache_key $arg_file/$arg_width;
               }
+
+              fastcgi_cache_key "custom/files/$cache_key";
+              fastcgi_pass b2b-{{ $key }};
+            }
           }
       }
       {{- end }}
