@@ -266,7 +266,7 @@ data:
     [handler_console]
     class = StreamHandler
     args = (sys.stderr,)
-    level = ERROR
+    level = DEBUG
     formatter = generic
 
     [formatter_generic]
