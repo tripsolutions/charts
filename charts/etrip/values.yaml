@@ -997,9 +997,9 @@ db:
     recovery:
       source: objectstore
       ## * objectStore: recover from the object store as defined under backup.s3,
-      ## * with the overrides under recovery.s3Overrides when defined
+      ## * with the overrides under recovery.s3Override when defined
       ## * backup: recover from a backup CRD, defined under recovery.backupName
-      # s3Overrides:
+      # s3Override:
       #   url: https://s3.eu-central-1.wasabisys.com
       #   path: s3://k8s-test/cnpg
       #   secretName: wasabi-secret
