@@ -861,6 +861,16 @@ entries:
   etrip:
   - apiVersion: v1
     appVersion: 4.0.79
+    created: "2023-06-28T18:35:50.794536193Z"
+    description: eTrip PHP Helm chart
+    digest: c60af527d3882175aa86a64357d98efd800082e4177a1037f8dc0ca1b718c8de
+    name: etrip
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/etrip-0.4.34/etrip-0.4.34.tgz
+    version: 0.4.34
+  - apiVersion: v1
+    appVersion: 4.0.79
     created: "2023-06-28T12:57:12.275046803Z"
     description: eTrip PHP Helm chart
     digest: bfc2dc0e676f45a0f9df4efd08c0755f3fe391d5793cd7f153c08ed78351d22c
@@ -1609,4 +1619,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2023-06-28T12:57:12.275412107Z"
+generated: "2023-06-28T18:35:50.79522881Z"
