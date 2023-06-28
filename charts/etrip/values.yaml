@@ -951,7 +951,7 @@ db:
       sslCert:
         name: {{ default .Release.Name }}-db-clone-tls
         key: tls.crt
-      rootCert:
+      sslRootCert:
         name: {{ default .Release.Name }}-db-clone-tls
         key: ca.crt
       {{- else }}{{/* no namespace */}}
@@ -961,7 +961,7 @@ db:
       sslCert:
         name: {{ .db.bootstrap.clone.name }}-db-replica-tls
         key: tls.crt
-      rootCert:
+      sslRootCert:
         name: {{ .db.bootstrap.clone.name }}-db-replica-tls
         key: ca.crt
       {{- end }}{{/* clone.namespace */}}
