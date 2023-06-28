@@ -929,7 +929,9 @@ db:
         source: bootstrap
     externalClusters:
     - name: bootstrap
-      {{ $s3 := mergeOverwrite (deepCopy .db.backup.s3) ( .db.bootstrap.recovery.s3Override | default dict ) }}
+      {{- $s3 := mergeOverwrite (deepCopy .db.backup.s3) ( .db.bootstrap.recovery.s3Override | default dict ) }}
+      {{- /* server name is by default same as externalCluster's name */}}
+      {{- $s3 := merge $s3 ( dict "serverName" (print .Release.Name "-db") )}}
       barmanObjectStore: {{ include "etrip.db.template.objectStore" $s3 | nindent 8 }}
         {{- else if eq .db.bootstrap.recovery.source "backup" }}
         backup: {{ .db.bootstrap.recovery.backupName }}
