@@ -75,14 +75,14 @@ spec:
             - name: ETRIP_DSN
               value: >-
                 user=etrip
-                host={{ .Release.Name }}-db-rw
+                host={{ .global.Release.Name }}-db-rw
                 sslcert=/tmp/secrets/app-tls/tls.crt
                 sslkey=/tmp/secrets/app-tls/tls.key
                 sslrootcert=/tmp/secrets/app-tls/ca.crt
             - name: ETRIP_DSN_RO
               value: >-
                 user=etrip
-                host={{ .Release.Name }}-db-r
+                host={{ .global.Release.Name }}-db-r
                 sslcert=/tmp/secrets/app-tls/tls.crt
                 sslkey=/tmp/secrets/app-tls/tls.key
                 sslrootcert=/tmp/secrets/app-tls/ca.crt
@@ -216,7 +216,7 @@ spec:
               sources:
               {{- if eq $db.provider "cnpg" }}
               - secret:
-                  name: {{ .Release.Name }}-db-app-tls
+                  name: {{ .global.Release.Name }}-db-app-tls
                   items:
                   - key: tls.crt
                     path: app-tls/tls.crt
