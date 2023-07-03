@@ -25,47 +25,19 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
+      securityContext:
+        fsGroup: 33
+      {{- if or
+        (eq .Values.db.provider "zalando")
+        (ne .Values.db.bootstrap.mode "transition") }}
       initContainers:
       - name: initdb
-        image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 100
-          runAsGroup: 101
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: app
-        env:
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef: 
-                name: agency.{{ include "agency.clusterName" . }}.credentials
-                key: password
-        - name: CONFIG_PATH
-          value: /config/agency.ini
+        {{- include "agency.pod" . | indent 8 }}
         command: [ initialize_agency_db, $(CONFIG_PATH)#agency ]
+      {{- end }}
       containers:
       - name: api
-        image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 100
-          runAsGroup: 101
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: app
-        env:
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef: 
-              name: agency.{{ include "agency.clusterName" . }}.credentials
-              key: password
-        - name: CONFIG_PATH
-          value: /config/agency.ini
+        {{- include "agency.pod" . | indent 8}}
         - name: UWSGI_ARGS
           value: --threads 8 --processes 4 --buffer-size 32768
         - name: SESSION_SECRET
@@ -106,12 +78,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 15
           timeoutSeconds: 5
-      - name: admin
-        image: {{ .Values.image.registry -}} /agency/client: {{- include "agency.clientImageTag" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-        env:
+      {{- /* common frontend envs */}}
+      {{- define "commonEnv" }}
         - name: AGENCY_VERSION
           value: {{ include "agency.appVersion" . | quote }}
         - name: AGENCY_ENV
@@ -120,14 +88,6 @@ spec:
           value: {{ .Values.agency.supportWidget | quote }}
         - name: AGENCY_ISFORTV
           value: {{ .Values.agency.forTV | quote }}
-        {{- $rescheck := .Values.ingress.rescheck }}
-        {{- if .Values.global }}{{ if .Values.global.agency }}
-        {{- $rescheck = default .Values.global.agency.rescheck $rescheck }}
-        {{- end }}{{end}}
-        {{- if $rescheck }}
-        - name: AGENCY_RESCHECK_URL
-          value: {{ index $rescheck.hostnames 0 }}
-        {{- end }}
         {{- if .Values.ingress.enabled }}
         - name: AGENCY_API
           value: {{ ternary "https" "http" (default .Values.global.agency.tls .Values.ingress.tls) -}}
@@ -142,6 +102,22 @@ spec:
           {{- else }}
           value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
           {{- end }}
+        {{- end }}
+      {{- end }}
+      - name: admin
+        image: {{ .Values.image.registry -}} /agency/client: {{- include "agency.clientImageTag" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+        {{- include "commonEnv" . }}
+        {{- $rescheck := .Values.ingress.rescheck }}
+        {{- if .Values.global }}{{ if .Values.global.agency }}
+        {{- $rescheck = default .Values.global.agency.rescheck $rescheck }}
+        {{- end }}{{end}}
+        {{- if $rescheck }}
+        - name: AGENCY_RESCHECK_URL
+          value: {{ index $rescheck.hostnames 0 }}
         {{- end }}
         {{- if .Values.agency.e_factura.enabled }}
         - name: AGENCY_EFACTURA_AUTH_URL
@@ -167,29 +143,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
         env:
-        - name: AGENCY_VERSION
-          value: {{ include "agency.appVersion" . | quote }}
-        - name: AGENCY_ENV
-          value: {{ .Values.agency.env }}
-        - name: AGENCY_SUPPORTWIDGET
-          value: {{ .Values.agency.supportWidget | quote }}
-        - name: AGENCY_ISFORTV
-          value: {{ .Values.agency.forTV | quote }}
-        {{- if .Values.ingress.enabled }}
-        - name: AGENCY_API
-          value: {{ ternary "https" "http" (default .Values.global.agency.tls .Values.ingress.tls) -}}
-            :// {{- index (default .Values.global.agency.admin .Values.ingress.admin).hostnames 0 -}}
-            /api
-        {{- end }}
-        {{- if .Values.agency.companies.enabled }}
-        - name: COMPANIES_API
-          {{- if .Values.companies.enabled }}
-          value: {{ ternary "https" "http" (default .Values.global.companies.tls .Values.companies.ingress.tls ) -}}
-            :// {{- index (default .Values.global.companies.hostnames .Values.companies.ingress.hostnames) 0 -}} /api
-          {{- else }}
-          value: {{ .Values.agency.companies.externalApi | default ( print .Values.agency.companies.frontend "/api" ) }}
-          {{- end }}
-        {{- end }}
+        {{- include "commonEnv" . }}
         - name: NGINX_LISTEN
           value: "*:8081"
         ports:
@@ -203,24 +157,7 @@ spec:
       {{- $efactura := .Values.agency.e_factura }}
       {{- if or $generali $efactura.enabled }}
       - name: loop
-        image: {{ $.Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" $ }}
-        imagePullPolicy: {{ $.Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 100
-          runAsGroup: 101
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: app
-        env:
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef: 
-              name: agency.{{ include "agency.clusterName" $ }}.credentials
-              key: password
-        - name: CONFIG_PATH
-          value: /config/agency.ini
+        {{- include "agency.pod" . | indent 8}}
         resources:
           {{- .Values.resources.loop | default $.Values.resources.cron | toYaml | nindent 10 }}
         command: [ python3 ]
@@ -271,3 +208,9 @@ spec:
           items:
           - key: agency.ini
             path: app/agency.ini
+      {{- if eq .Values.db.provider "cnpg" }}
+      - name: ssl-cert
+        secret:
+          secretName: {{ include "agency.releaseName" . }}-db-app-tls
+          defaultMode: 416
+      {{- end }}

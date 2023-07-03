@@ -17,8 +17,13 @@ data:
     pyramid.default_locale_name = en
     pyramid.includes = pyramid_beaker
 
+    {{- if eq .Values.db.provider "zalando" }}
     sqlalchemy.url = postgresql+psycopg2://companies:$PG_PASS@
         {{- include "companies.clusterName" . -}} /companies
+    {{- else }}
+    sqlalchemy.url = postgresql+psycopg2://companies@
+        {{- include "companies.releaseName" . -}}-db-rw/companies
+    {{- end }}
     retry.attempts = 3
 
     jwt.private_key = ${SESSION_SECRET}

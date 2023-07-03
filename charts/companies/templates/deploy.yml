@@ -25,47 +25,19 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yml") . | sha256sum }}
     spec:
+      securityContext:
+        fsGroup: 65534
+      {{- if or 
+        (eq .Values.db.provider "zalando")
+        (ne .Values.db.bootstrap.mode "transition" ) }}
       initContainers:
       - name: initdb
-        image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "companies.serverImageTag" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 100
-          runAsGroup: 101
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: app
-        env:
-        - name: CONFIG_PATH
-          value: /config/config.ini
-        - name: PG_PASS
-          valueFrom:
-            secretKeyRef: 
-                name: companies.{{ include "companies.clusterName" . }}.credentials
-                key: password
+        {{- include "companies.pod" . | indent 8 }}
         command: [ alembic, -c, /config/config.ini, upgrade, head ]
+      {{- end }}
       containers:
       - name: api
-        image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "companies.serverImageTag" . }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 100
-          runAsGroup: 101
-        volumeMounts:
-        - mountPath: /config
-          name: config
-          subPath: app
-        env:
-        - name: CONFIG_PATH
-          value: /config/config.ini
-        - name: PG_PASS
-          valueFrom:
-            secretKeyRef: 
-              name: companies.{{ include "companies.clusterName" . }}.credentials
-              key: password
+        {{- include "companies.pod" . | indent 8 }}
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
@@ -89,6 +61,12 @@ spec:
           items:
           - key: config.ini
             path: app/config.ini
+      {{- if eq .Values.db.provider "cnpg" }}
+      - name: ssl-cert
+        secret:
+          secretName: {{ include "companies.releaseName" . }}-db-app-tls
+          defaultMode: 416 # octal 640
+      {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment

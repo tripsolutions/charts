@@ -44,7 +44,11 @@ data:
     jwt.cookie_prefer_header = true
     jwt.cookie_path = /api
 
+    {{- if eq .Values.db.provider "zalando" }}
     sqlalchemy.url = postgresql+psycopg2://agency:${DB_PASSWORD}@{{ include "agency.clusterName" . }}/agency
+    {{- else }}
+    sqlalchemy.url = postgresql+psycopg2://agency@{{ include "agency.releaseName" . }}-db-rw/agency
+    {{- end }}
     agency.market = {{ .Values.agency.market | default "en" }}
     agency.env = {{ .Values.agency.env }}
 

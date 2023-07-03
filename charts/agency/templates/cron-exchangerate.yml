@@ -21,27 +21,12 @@ spec:
             cronjob-name: exchangerate
             {{- include "agency.selectorLabels" . | nindent 12 }}
         spec:
+          securityContext:
+            fsGroup: 33
           restartPolicy: Never
           containers:
           - name: cron-exchangerate
-            image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
-            imagePullPolicy: {{ .Values.image.pullPolicy }}
-            securityContext:
-              allowPrivilegeEscalation: false
-              runAsUser: 100
-              runAsGroup: 101
-            volumeMounts:
-            - mountPath: /config
-              name: config
-              subPath: app
-            env:
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef: 
-                    name: agency.{{ include "agency.clusterName" . }}.credentials
-                    key: password
-            - name: CONFIG_PATH
-              value: /config/agency.ini
+            {{- include "agency.pod" . | indent 12 }}
             command: [ python3 ]
             args: 
             - -c 
@@ -66,4 +51,10 @@ spec:
               items:
               - key: agency.ini
                 path: app/agency.ini
+          {{- if eq .Values.db.provider "cnpg" }}
+          - name: ssl-cert
+            secret:
+              secretName: {{ include "agency.releaseName" . }}-db-app-tls
+              defaultMode: 416
+          {{- end }}
 {{- end }}

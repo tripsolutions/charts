@@ -55,9 +55,53 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Cluster name
 */}}
 {{- define "agency.clusterName" -}}
-{{- if hasPrefix (print .Values.db.teamId "-") (include "agency.releaseName" .) -}}
-{{- include "agency.releaseName" . -}} -cluster
+{{- $releaseName := include "agency.releaseName" . -}}
+{{- if or 
+    (hasPrefix (print .Values.db.teamId "-") $releaseName) 
+    (eq .Values.db.teamId $releaseName)
+    -}}
+{{- $releaseName -}} -cluster
 {{- else -}}
-{{- .Values.db.teamId -}} - {{- include "agency.releaseName" . -}} -cluster
+{{- .Values.db.teamId -}} - {{- $releaseName -}} -cluster
 {{- end -}}
 {{- end -}}
+
+{{- /* 
+Common agency pod definitions
+*/}}
+{{- define "agency.pod" }}
+image: {{ .Values.image.registry -}} /agency/server: {{- include "agency.serverImageTag" . }}
+imagePullPolicy: {{ .Values.image.pullPolicy }}
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsUser: 33
+  runAsGroup: 33
+volumeMounts:
+- mountPath: /config
+  name: config
+  subPath: app
+{{- if eq .Values.db.provider "cnpg" }}
+- mountPath: /var/www/.postgresql/postgresql.crt
+  name: ssl-cert
+  subPath: tls.crt
+  readonly: true
+- mountPath: /var/www/.postgresql/postgresql.key
+  name: ssl-cert
+  subPath: tls.key
+  readonly: true
+- mountPath: /var/www/.postgresql/root.crt
+  name: ssl-cert
+  subPath: ca.crt
+  readonly: true
+{{- end }}
+env:
+{{- if eq .Values.db.provider "zalando" }}
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef: 
+      name: agency.{{ include "agency.clusterName" . }}.credentials
+      key: password
+{{- end }}
+- name: CONFIG_PATH
+  value: /config/agency.ini
+{{- end }}

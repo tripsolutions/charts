@@ -1,6 +1,7 @@
-{{- $clusterName := include "companies.clusterName" . }}
+{{- $clusterName := include "agency.clusterName" . }}
+{{- if or (eq .Values.db.provider "zalando") (eq .Values.db.bootstrap.mode "transition") }}
 {{- $clone := .Values.db.clone }}
-{{- if .Values.global}}{{ if .Values.global.clone }}
+{{- if .Values.global }}{{ if .Values.global.clone }}
 {{- $clone = .Values.global.clone }}
 {{- end }}{{ end }}
 apiVersion: "acid.zalan.do/v1"
@@ -13,7 +14,7 @@ metadata:
     acid.zalan.do/controller: {{ .Values.db.controller }}
   {{- end }}
   labels:
-    {{- include "companies.labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
     {{- with $exporter := .Values.global.db_exporter }}{{ if $exporter.enabled }}
     exporter: "true"
     {{- end }}{{ end }}
@@ -22,12 +23,12 @@ spec:
   volume: {{ toYaml .Values.db.volume | nindent 4 }}
   numberOfInstances: {{ .Values.replicas.db }}
   users:
-    companies: []
+    agency: []
   databases:
-    companies: companies
+    agency: agency
   postgresql:
     version: {{ .Values.db.version | quote }}
-    parameters: {{ toYaml .Values.db.parameters | nindent 6}}
+    parameters: {{ toYaml .Values.db.parameters | nindent 6 }}
   {{- if .Values.resources.db }}
   resources: {{ toYaml .Values.resources.db | nindent 4 }}
   {{- end }}
@@ -35,7 +36,7 @@ spec:
   clone: {{ toYaml $clone | nindent 4 }}
   {{- else }}
   clone:
-    cluster: {{ include "companies.releaseName" . }}-source
+    cluster: {{ include "agency.releaseName" . }}-source
   {{- end }}{{ end }}
   {{- with .Values.db.standby }}
   {{- if .enabled }}
@@ -74,10 +75,10 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: standby.{{ include "companies.releaseName" . }}-source.credentials
+  name: standby.{{ include "agency.releaseName" . }}-source.credentials
   namespace: {{ .Release.Namespace }}
   labels: 
-    {{- include "companies.labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
   annotations:
     reflector.v1.k8s.emberstack.com/reflects: "{{ $clone.namespace -}} /standby.
       {{- $clone.cluster | default $clusterName -}} .credentials"
@@ -86,10 +87,10 @@ type: Opaque
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "companies.releaseName" . }}-source
+  name: {{ include "agency.releaseName" . }}-source
   namespace: {{ .Release.Namespace }}
   labels: 
-    {{- include "companies.labels" . | nindent 4 }}
+    {{- include "agency.labels" . | nindent 4 }}
 spec:
   type: ExternalName
   externalName: {{ $clone.cluster | default $clusterName -}} .
@@ -100,3 +101,31 @@ spec:
     protocol: TCP
     targetPort: 5432
 {{- end }}{{ end }}
+{{- $allowCloneFrom := .Values.db.allowCloneFrom }}
+{{- if .Values.global }}
+{{- $allowCloneFrom = .Values.global.allowCloneFrom }}
+{{- end }}
+{{- if $allowCloneFrom }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  {{- $clusterName := include "agency.clusterName" . }}
+  name: standby.{{ $clusterName }}.credentials
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "agency.labels" . | nindent 4 }}
+  annotations:
+    reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: {{ $allowCloneFrom | quote }}
+type: Opaque
+data:
+  username: {{ "standby" | b64enc }}
+  {{- $secret := lookup "v1" "Secret" .Release.Namespace (printf "standby.%s.credentials" $clusterName ) }}
+  {{- if $secret }}
+  password: {{ $secret.data.password }}
+  {{- else }}
+  password: {{ randAlphaNum 64 | b64enc }}
+  {{- end }}
+{{- end }}
+{{- end }}

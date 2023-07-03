@@ -13,36 +13,18 @@ spec:
     metadata:
       labels:
         cronjob-name: invoices
-        {{- include "agency.selectorLabels" . | nindent 8 }}
+        {{- include "companies.selectorLabels" . | nindent 8 }}
     spec:
       template:
         metadata:
           labels:
             cronjob-name: invoices
-            {{- include "agency.selectorLabels" . | nindent 12 }}
+            {{- include "companies.selectorLabels" . | nindent 12 }}
         spec:
           restartPolicy: Never
           containers:
           - name: cron-invoices
-            image: {{ .Values.image.registry -}} /agency/companies-server: {{- include "companies.serverImageTag" . }}
-            imagePullPolicy: {{ .Values.image.pullPolicy }}
-            command: [ issue_agency_invoices, /config/config.ini ]
-            securityContext:
-              allowPrivilegeEscalation: false
-              runAsUser: 100
-              runAsGroup: 101
-            volumeMounts:
-            - mountPath: /config
-              name: config
-              subPath: app
-            env:
-            - name: CONFIG_PATH
-              value: /config/config.ini
-            - name: PG_PASS
-              valueFrom:
-                secretKeyRef: 
-                  name: companies.{{ include "companies.clusterName" . }}.credentials
-                  key: password
+            {{- include "companies.pod" . | nindent 12 }}
             - name: SESSION_SECRET
               valueFrom:
                 secretKeyRef:
@@ -60,4 +42,10 @@ spec:
               items:
               - key: config.ini
                 path: app/config.ini
+          {{- if eq .Values.db.provider "cnpg" }}
+          - name: ssl-cert
+            secret:
+              secretName: {{ include "companies.releaseName" . }}-db-app-tls
+              defaultMode: 416
+          {{- end }}
 {{- end }}
