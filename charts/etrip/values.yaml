@@ -809,7 +809,7 @@ db:
   provider: zalando # cnpg or zalando
 
   dbParameters:
-    max_connections: "20"
+    max_connections: "100"
     shared_buffers: 1GB
     temp_buffers: 32MB
     work_mem: 32MB 

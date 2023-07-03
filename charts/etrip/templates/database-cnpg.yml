@@ -229,6 +229,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: {{ .Release.Name }}-db
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -237,11 +238,3 @@ spec:
   - port: metrics
 {{- end }}
 {{- end }}
-{{/*  XXX: how to overcome refusal to backup to a non-empty bucket?
-      tested standby from backup
-      tested clone across namespaces
-      TODO: investigate metrics
-      stakater/reloader not needed, on cert rotation new certs are automatically
-      updated in the mounted secrets inside pods
-      TODO: investigate KeyDB alternative to Redis
- */ -}}

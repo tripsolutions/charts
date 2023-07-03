@@ -115,19 +115,19 @@ data:
       }
 
       upstream webapp {
-        server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.main.port }} max_fails=0;
       }
 
       upstream webservice {
-        server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.ws.port }} max_fails=0;
       }
 
       upstream webservice_prio {
-        server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.ws_prio.port }} max_fails=0;
       }
 
       upstream background {
-        server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=64 fail_timeout=1s;
+        server localhost:{{ .Values.etrip.fpm.slow.port }} max_fails=0;
       }
 
       server {
