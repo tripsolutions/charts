@@ -5,11 +5,11 @@
 {{- $createSecretsVolume = or $createSecretsVolume (eq $db.provider "cnpg") }}
 {{- $createSecretsVolume = or $createSecretsVolume (
       and .global.Values.etrip.searchlogs.enabled 
-      (eq .global.Values.etrip.searchlogs.provider "cnpg") ) }}
+      .global.Values.etrip.searchlogs.certificate ) }}
 {{- $createSecretsVolumeMount := $createSecretsVolume }}
 {{- $createSecretsVolume = or $createSecretsVolume (
       and .global.Values.elogger.enabled
-      (eq .global.Values.elogger.db.provider "cnpg") ) }}
+      .global.Values.elogger.db.certificate ) }}
 kind: CronJob
 apiVersion: batch/v1
 metadata:
@@ -35,6 +35,8 @@ spec:
             {{- include "selectorLabels" .global | nindent 12 }}
         spec:
           restartPolicy: Never
+          securityContext:
+            fsGroup: 33
           containers:
           - name: job
             {{- include "etripImage" .global | nindent 12 }}
@@ -76,40 +78,37 @@ spec:
               value: >-
                 user=etrip
                 host={{ .global.Release.Name }}-db-rw
-                sslcert=/tmp/secrets/app-tls/tls.crt
-                sslkey=/tmp/secrets/app-tls/tls.key
-                sslrootcert=/tmp/secrets/app-tls/ca.crt
+                sslcert=/secrets/app-tls/postgresql.crt
+                sslkey=/secrets/app-tls/postgresql.key
+                sslrootcert=/secrets/app-tls/root.crt
             - name: ETRIP_DSN_RO
               value: >-
                 user=etrip
                 host={{ .global.Release.Name }}-db-r
-                sslcert=/tmp/secrets/app-tls/tls.crt
-                sslkey=/tmp/secrets/app-tls/tls.key
-                sslrootcert=/tmp/secrets/app-tls/ca.crt
+                sslcert=/secrets/app-tls/postgresql.crt
+                sslkey=/secrets/app-tls/postgresql.key
+                sslrootcert=/secrets/app-tls/root.crt
             {{- end }}
             {{- with .global.Values.etrip.searchlogs -}}{{- if .enabled }}
-            {{- if eq .provider "zalando" }}
+            {{- if not .certificate }}
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s.%s.credentials" .username .host }}
+                  name: {{ printf "%s.%s.credentials" .username .host | default .passwordSecret }}
                   key: password
-            - name: ETRIP_SEARCHLOGS_DSN
-              value: >-
-                password=$(SEARCHLOGS_DBPASSWORD)
-                user={{ .username }}
-                dbname={{ .dbname }}
-                host={{ .host }}
-            {{- else if eq .provider "cnpg" }}
-            - name: ETRIP_SEARCHLOGS_DSN
-              value: >-
-                user={{ .username }}
-                dbname={{ .dbname }}
-                host={{ .host }}
-                sslcert=/tmp/secrets/searchlogs-tls/tls.crt
-                sslkey=/tmp/secrets/searchlogs-tls/tls.key
-                sslrootcert=/tmp/secrets/searchlogs-tls/ca.crt
             {{- end }}
+            - name: ETRIP_SEARCHLOGS_DSN
+              value: >-
+                user={{ .username }}
+                dbname={{ .dbname }}
+                host={{ .host }}
+                {{- if not .certificate }}}
+                password=$(SEARCHLOGS_DBPASSWORD)
+                {{- else }}
+                sslcert=/secrets/searchlogs-tls/postgresql.crt
+                sslkey=/secrets/searchlogs-tls/postgresql.key
+                sslrootcert=/secrets/searchlogs-tls/root.crt
+                {{- end }}
             - name: ETRIP_SEARCHLOGS_TABLE
               value: {{ .table | default ($.global.Release.Name
                 | trimPrefix (print $.global.Chart.Name "-")) }}
@@ -134,67 +133,47 @@ spec:
               - /bin/sh
               - -c
               - |
-                {{- if $createSecretsVolumeMount }}
-                cp -r /secrets /tmp/secrets
-                find /tmp/secrets -name '*.key' -exec chmod 600 {} \;
-                {{- end }}
                 {{- .cron.command | toString | nindent 16 }}
                 touch /tmp/elogger/elogger.done
           {{- if and .global.Values.elogger.enabled (not .cron.nologs ) }}
           {{- with .global.Values.elogger }}
           - name: sendlogs
+            # run as non-root
+            securityContext:
+              runAsUser: 33
+              runAsGroup: 33
             image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
             imagePullPolicy: {{ .image.pullPolicy }}
             env:
             - name: ELOGGER_DIR
               value: /tmp/elogger
-            {{- if eq .db.provider "zalando" }}
+            {{- if not .db.certificate }}
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
                   name: {{ printf "%s.%s.credentials" .db.username .db.host }}
                   key: password
-            - name: ELOGGER_DSN
-              value: >-
-                user={{ .db.username }}
-                password=$(ELOGGER_DBPASS)
-                host={{ .db.host }}
-                dbname={{ .db.dbname }}
-            {{- else if eq .db.provider "cnpg" }}
-            - name: ELOGGER_DSN
-              value: >-
-                user={{ .db.username }}
-                host={{ .db.host }}
-                dbname={{ .db.dbname }}
             {{- end }}
+            - name: ELOGGER_DSN
+              value: >-
+                user={{ .db.username }}
+                host={{ .db.host }}
+                dbname={{ .db.dbname }}
+                {{- if not .db.certificate }}
+                password=$(ELOGGER_DBPASS)
+                {{- end }}
             - name: ELOGGER_TABLE
               value: {{ .table | default ($.global.Release.Name
                 | trimPrefix (print $.global.Chart.Name "-")) }}
-            command:
-              - sh
-              - -c 
-              - |
-                while true; do
-                  if [ -r /tmp/elogger/elogger.done ]; then
-                    break
-                  fi
-                  sendlogs
-                  sleep 60
-                done
-                sendlogs
+            - name: ELOGGER_INGRESS
+              value: "false"
             volumeMounts:
             - mountPath: /tmp/elogger
               name: elogger
-            {{- if eq .db.provider "cnpg" }}
-            - mountPath: /root/.postgresql/postgresql.crt
+            {{- if .db.certificate }}
+            - mountPath: /app/.postgresql
               name: secrets
-              subPath: elogger-tls/tls.crt
-            - mountPath: /root/.postgresql/postgresql.key
-              name: secrets
-              subPath: elogger-tls/tls.key
-            - mountPath: /root/.postgresql/root.crt
-              name: secrets
-              subPath: elogger-tls/ca.crt
+              subPath: elogger-tls
             {{- end }}
           {{- end }}{{ end }}
           volumes:
@@ -219,37 +198,38 @@ spec:
                   name: {{ .global.Release.Name }}-db-app-tls
                   items:
                   - key: tls.crt
-                    path: app-tls/tls.crt
+                    path: app-tls/postgresql.crt
                   - key: tls.key
-                    path: app-tls/tls.key
+                    path: app-tls/postgresql.key
+                    mode: 416
                   - key: ca.crt
-                    path: app-tls/ca.crt
+                    path: app-tls/root.crt
               {{- end }}
               {{- with .global.Values.etrip.searchlogs }}
-              {{- if and .enabled (eq .provider "cnpg") }}
+              {{- if and .enabled .certificate }}
               - secret:
                   name: {{ .certificate }}
                   items:
                   - key: tls.crt
-                    path: searchlogs-tls/tls.crt
+                    path: searchlogs-tls/postgresql.crt
                   - key: tls.key
-                    path: searchlogs-tls/tls.key
+                    path: searchlogs-tls/postgresql.key
+                    mode: 416
                   - key: ca.crt
-                    path: searchlogs-tls/ca.crt
+                    path: searchlogs-tls/root.crt
               {{- end }}{{ end }}
               {{- with .global.Values.elogger }}
-              {{- if and .enabled (eq .db.provider "cnpg") }}
+              {{- if and .enabled .db.certificate }}
               - secret:
                   name: {{ .db.certificate }}
                   items:
                   - key: tls.crt
-                    path: elogger-tls/tls.crt
+                    path: elogger-tls/postgresql.crt
                   - key: tls.key
-                    path: elogger-tls/tls.key
-                    # mode 0600
+                    path: elogger-tls/postgresql.key
                     mode: 384
                   - key: ca.crt
-                    path: elogger-tls/ca.crt
+                    path: elogger-tls/root.crt
               {{- end }}{{ end }}
           {{- end }}
 {{- end }}

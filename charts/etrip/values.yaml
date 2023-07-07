@@ -90,13 +90,16 @@ etrip:
   other_slow_urls: []
   searchlogs:
     enabled: false
-    provider: zalando # or cnpg
     table: null
     host: searchlogs-cluster
     username: searchlogs
     dbname: searchlogs
-    ## CNPG specific:
-    #certificate: searchlogs-app-tls
+
+    # SSL authentication (preferred when set)
+    certificate: null
+
+    # password authentication
+    passwordSecret: searchlogs.searchlogs-cluster.credentials
   priority_api_users: []
   config: 
     install_id: default
@@ -650,18 +653,23 @@ elogger:
   enabled: false
   table: null
   db:
-    provider: zalando # or cnpg
     host: elogger-cluster
     username: elogger
     dbname: elogger
-    ## CNPG specific:
-    #certificate: elogger-app-tls
+
+    # SSL authentication (preferred when set)
+    certificate: null
+
+    # password authentication
+    passwordSecret: elogger.elogger-cluster.credentials
 
   image:
-    pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: elogger
-    tag: master
+    # current version requires the changes introduced in build c94eb824
+    # but recommended minimum build is master-fad582bf (decreased timeout, 
+    # graceful exit)
+    tag: master-fad582bf
 
 smtpgate:
   enabled: false
