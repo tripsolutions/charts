@@ -3,6 +3,21 @@ entries:
   agency:
   - apiVersion: v2
     appVersion: 2.8.0
+    created: "2023-07-11T13:12:45.31959101Z"
+    dependencies:
+    - condition: companies.enabled
+      name: companies
+      repository: ""
+      version: 0.1.11
+    description: eTrip Agency Helm chart
+    digest: a55a05af4e1b48f606274e2702f3713b4af356cf36eba4c868503c6e77958a45
+    name: agency
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/agency-0.4.34/agency-0.4.34.tgz
+    version: 0.4.34
+  - apiVersion: v2
+    appVersion: 2.8.0
     created: "2023-07-03T15:32:41.74101566Z"
     dependencies:
     - condition: companies.enabled
@@ -673,6 +688,16 @@ entries:
     - https://github.com/tripsolutions/charts/releases/download/agency-website-0.0.1/agency-website-0.0.1.tgz
     version: 0.0.1
   companies:
+  - apiVersion: v1
+    appVersion: 2.8.0
+    created: "2023-07-11T13:12:45.499876238Z"
+    description: Cumulus Companies Helm chart
+    digest: fd1d7eb85d960519cb6478764b9b00d08cc7cc90214a1da97a710e82893eee0c
+    name: companies
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/companies-0.1.11/companies-0.1.11.tgz
+    version: 0.1.11
   - apiVersion: v1
     appVersion: 2.8.0
     created: "2023-07-03T15:32:41.885444747Z"
@@ -1664,4 +1689,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2023-07-07T16:30:36.657911154Z"
+generated: "2023-07-11T13:12:45.500875005Z"
