@@ -102,6 +102,4 @@ env:
         name: companies.{{ include "companies.clusterName" . }}.credentials
         key: password
 {{- end }}
-- name: CONFIG_PATH
-  value: /config/agency.ini
 {{- end }}
