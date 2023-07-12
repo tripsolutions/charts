@@ -82,15 +82,15 @@ volumeMounts:
 - mountPath: /.postgresql/postgresql.crt
   name: ssl-cert
   subPath: tls.crt
-  readonly: true
+  readOnly: true
 - mountPath: /.postgresql/postgresql.key
   name: ssl-cert
   subPath: tls.key
-  readonly: true
+  readOnly: true
 - mountPath: /.postgresql/root.crt
   name: ssl-cert
   subPath: ca.crt
-  readonly: true
+  readOnly: true
 {{- end }}
 env:
 - name: CONFIG_PATH

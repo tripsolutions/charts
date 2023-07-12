@@ -84,15 +84,15 @@ volumeMounts:
 - mountPath: /var/www/.postgresql/postgresql.crt
   name: ssl-cert
   subPath: tls.crt
-  readonly: true
+  readOnly: true
 - mountPath: /var/www/.postgresql/postgresql.key
   name: ssl-cert
   subPath: tls.key
-  readonly: true
+  readOnly: true
 - mountPath: /var/www/.postgresql/root.crt
   name: ssl-cert
   subPath: ca.crt
-  readonly: true
+  readOnly: true
 {{- end }}
 env:
 {{- if eq .Values.db.provider "zalando" }}
