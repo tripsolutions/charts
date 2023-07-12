@@ -6,5 +6,5 @@ version: 0.4.35
 appVersion: 2.8.0
 dependencies:
 - name: companies
-  version: "0.1.11"
+  version: "0.1.12"
   condition: companies.enabled
