@@ -367,11 +367,11 @@ db:
 
   affinity: null
 
-  ## CNPG specific: monitring
-  ## We switch back to a configuration for database monitring per cluster
+  ## CNPG specific: monitoring
+  ## We switch back to a configuration for database monitoring per cluster
   ## It's overkill to generalize it to both clusters because we no longer
   ## need custom queries, CNPG exports replication_replay_lag_seconds.
-  monitring: false
+  monitoring: false
 
 resources:
   # don't override operator defaults
