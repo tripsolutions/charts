@@ -3,6 +3,21 @@ entries:
   agency:
   - apiVersion: v2
     appVersion: 2.8.0
+    created: "2023-07-13T11:59:40.231443126Z"
+    dependencies:
+    - condition: companies.enabled
+      name: companies
+      repository: ""
+      version: 0.1.13
+    description: eTrip Agency Helm chart
+    digest: c8f27af825a8b49b6798360e3101e0948eaaa9d354eeec081f2d7a62ec12daea
+    name: agency
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/agency-0.4.36/agency-0.4.36.tgz
+    version: 0.4.36
+  - apiVersion: v2
+    appVersion: 2.8.0
     created: "2023-07-12T12:11:25.82060566Z"
     dependencies:
     - condition: companies.enabled
@@ -705,6 +720,16 @@ entries:
   companies:
   - apiVersion: v1
     appVersion: 2.8.0
+    created: "2023-07-13T11:59:40.39364165Z"
+    description: Cumulus Companies Helm chart
+    digest: c8cc5d3d751ffee5d832cbf29386c3063d220ea4616c2310d25437825a4c2512
+    name: companies
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/companies-0.1.13/companies-0.1.13.tgz
+    version: 0.1.13
+  - apiVersion: v1
+    appVersion: 2.8.0
     created: "2023-07-12T12:11:26.018569641Z"
     description: Cumulus Companies Helm chart
     digest: d8770dc1eac8d28574abcb58416d961287f37af5f20cd7341261db71f684ac8c
@@ -934,6 +959,16 @@ entries:
     - https://github.com/tripsolutions/charts/releases/download/companies-0.0.13/companies-0.0.13.tgz
     version: 0.0.13
   etrip:
+  - apiVersion: v1
+    appVersion: 5.0.52
+    created: "2023-07-13T11:59:40.567981803Z"
+    description: eTrip PHP Helm chart
+    digest: 0cb0b33a130efb72e2d9c8c92085dab5f76328e9a49424eab05b3620548af62b
+    name: etrip
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/etrip-0.5.1/etrip-0.5.1.tgz
+    version: 0.5.1
   - apiVersion: v1
     appVersion: 5.0.52
     created: "2023-07-07T16:30:36.657574848Z"
@@ -1714,4 +1749,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2023-07-12T12:11:26.018958844Z"
+generated: "2023-07-13T11:59:40.568512822Z"
