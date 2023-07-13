@@ -195,7 +195,7 @@ spec:
   {{- 
     $templateStr := tpl $db.template (
       dict "Release" .Release "Values" .Values "Chart" .Chart "db" $db
-          "Template" .Template
+          "Template" .Template "releaseName" $releaseName
     )
   }}
   {{- $templateDict := fromYaml $templateStr -}}

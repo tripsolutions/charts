@@ -195,7 +195,7 @@ db:
     - name: bootstrap
       {{- $s3 := mergeOverwrite (deepCopy .db.backup.s3) ( .db.bootstrap.recovery.s3Override | default dict ) }}
       {{- /* server name is by default same as externalCluster's name */}}
-      {{- $s3 := merge $s3 ( dict "serverName" (print .Release.Name "-db") )}}
+      {{- $s3 := merge $s3 ( dict "serverName" (print .releaseName "-db") )}}
       barmanObjectStore: {{ include "companies.db.template.objectStore" $s3 | nindent 8 }}
         {{- else if eq .db.bootstrap.recovery.source "backup" }}
         backup: {{ .db.bootstrap.recovery.backupName }}
@@ -208,17 +208,17 @@ db:
     - name: bootstrap
       {{- if eq .db.bootstrap.clone.source "peer" }}
       connectionParameters:
-        host: {{ .db.bootstrap.clone.name | default .Release.Name }}-db-r.{{ .db.bootstrap.clone.namespace | default .Release.Namespace }}
+        host: {{ .db.bootstrap.clone.name | default .releaseName }}-db-r.{{ .db.bootstrap.clone.namespace | default .Release.Namespace }}
         user: streaming_replica
       {{- if .db.bootstrap.clone.namespace }}
       sslKey:
-        name: {{ default .Release.Name }}-db-clone-tls
+        name: {{ default .releaseName }}-db-clone-tls
         key: tls.key
       sslCert:
-        name: {{ default .Release.Name }}-db-clone-tls
+        name: {{ default .releaseName }}-db-clone-tls
         key: tls.crt
       sslRootCert:
-        name: {{ default .Release.Name }}-db-clone-tls
+        name: {{ default .releaseName }}-db-clone-tls
         key: ca.crt
       {{- else }}{{/* no namespace */}}
       sslKey:
