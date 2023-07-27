@@ -161,8 +161,14 @@ data:
 
         location / {
           location /api {
+            auth_basic off;
             try_files $uri /apiv2/index.php$is_args$args;
           }
+ 
+          location /swagger {
+            auth_basic off;
+          }
+
           location ~ \.php {
             error_page 418 = @slow;
             fastcgi_pass webapp;
