@@ -119,7 +119,7 @@ data:
 
     {{ with .Values.agency.stuba_api -}}
     stuba_api.url = {{ if .url }} {{- .url -}} {{ else if eq .env "live" -}}
-            http://api.stuba.com/RXLServices/ASMX/XmlService.asmx?WSDL
+            http://apiconnect.stuba.com/RXLServices/ASMX/XmlService.asmx?WSDL
             {{- else -}} 
             http://www.stubademo.com/RXLStagingServices/ASMX/XmlService.asmx?WSDL
             {{- end }}
