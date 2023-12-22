@@ -86,7 +86,7 @@ agency:
     url: https://api.travelify.io
     application_id: NULL
     private_key: NULL
-
+  tinymce_key: null
   cors:
     # enable CORS for the websites (list clients)
     free: false

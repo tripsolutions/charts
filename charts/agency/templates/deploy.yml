@@ -128,6 +128,10 @@ spec:
           value: {{ ternary "https" "http" (default $.Values.global.agency.tls $.Values.ingress.tls) -}} 
           :// {{- index (default $.Values.global.agency.admin.hostnames $.Values.ingress.hostnames) 0 -}} /efacturaAuth
         {{- end }}
+        {{- with .Values.agency.tinymce_key }}
+        - name: TINY_MCE_API_KEY
+          value: {{ . }}
+        {{- end }}
         - name: NGINX_LISTEN
           value: "*:8080"
         ports:
