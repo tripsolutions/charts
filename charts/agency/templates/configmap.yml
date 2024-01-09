@@ -152,8 +152,6 @@ data:
     {{ with .Values.agency.travelify -}}
       {{ if .enabled -}}
     travelify.url = {{ .url }}
-    travelify.application_id = {{ .application_id }}
-    travelify.private_key = {{ .private_key }}
       {{ end -}}
     {{ end }}
 
