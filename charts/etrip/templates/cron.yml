@@ -111,7 +111,9 @@ spec:
                 {{- end }}
             - name: ETRIP_SEARCHLOGS_TABLE
               value: {{ .table | default ($.global.Release.Name
-                | trimPrefix (print $.global.Chart.Name "-")) }}
+                | trimPrefix (print $.global.Chart.Name "-")) 
+                | replace "-" "_" }}
+                 }}
             {{- end }}{{- end }}
             {{- if .cron.env }}
             {{- range .cron.env }}
@@ -164,7 +166,8 @@ spec:
                 {{- end }}
             - name: ELOGGER_TABLE
               value: {{ .table | default ($.global.Release.Name
-                | trimPrefix (print $.global.Chart.Name "-")) }}
+                | trimPrefix (print $.global.Chart.Name "-"))
+                | replace "-" "_" }}
             - name: ELOGGER_INGRESS
               value: "false"
             volumeMounts:

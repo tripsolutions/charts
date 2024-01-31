@@ -187,7 +187,8 @@ spec:
             {{- end }}
         - name: ETRIP_SEARCHLOGS_TABLE
           value: {{ .table | default ($.Release.Name
-            | trimPrefix (print $.Chart.Name "-")) }}
+            | trimPrefix (print $.Chart.Name "-"))
+            | replace "-" "_" }}
         {{- end }}{{- end }}
         - name: ETRIP_LOGDIR
           value: /tmp/elogger
@@ -273,7 +274,8 @@ spec:
             {{- end }}
         - name: ELOGGER_TABLE
           value: {{ .table | default ($.Release.Name
-            | trimPrefix (print $.Chart.Name "-")) }}
+            | trimPrefix (print $.Chart.Name "-")) 
+            | replace "-" "_" }}
         - name: ELOGGER_INGRESS
           value: "false"
         volumeMounts:
