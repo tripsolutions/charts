@@ -78,7 +78,7 @@ agency:
     enabled: false
     auth_url: https://logincert.anaf.ro
     api_url: https://api.anaf.ro
-    validation_url: https://webservicesp.anaf.ro/prod/FCTEL/rest/validare/FACT1
+    webservice_url: https://webservicesp.anaf.ro
     client_id: client_id
     client_secret: client_secret
   travelify:
