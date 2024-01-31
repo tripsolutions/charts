@@ -208,7 +208,7 @@ db:
     - name: bootstrap
       {{- if eq .db.bootstrap.clone.source "peer" }}
       connectionParameters:
-        host: {{ .db.bootstrap.clone.name | default .releaseName }}-db-r.{{ .db.bootstrap.clone.namespace | default .Release.Namespace }}
+        host: {{ .db.bootstrap.clone.name | default .releaseName }}-db-rw.{{ .db.bootstrap.clone.namespace | default .Release.Namespace }}
         user: streaming_replica
       {{- if .db.bootstrap.clone.namespace }}
       sslKey:
