@@ -288,4 +288,3 @@ data:
   queries.yaml: |
     {{- toYaml $exporter.extraQueries | nindent 4 }}
   {{- end }}{{ end }}
-  
