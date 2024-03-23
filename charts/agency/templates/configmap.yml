@@ -149,6 +149,15 @@ data:
       {{ end -}}
     {{ end }}
 
+    {{ with .Values.agency.e_factura -}}
+      {{ if .enabled -}}
+    e_factura.api_url = {{ .api_url }}
+    e_factura.username = {{ .username }}
+    e_factura.password = {{ .password }}
+    e_factura.api_key = {{ .api_key }}
+      {{ end -}}
+    {{ end }}
+
     {{ with .Values.agency.travelify -}}
       {{ if .enabled -}}
     travelify.url = {{ .url }}
