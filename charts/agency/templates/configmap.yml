@@ -149,20 +149,21 @@ data:
       {{ end -}}
     {{ end }}
 
-    {{ with .Values.agency.e_factura -}}
-      {{ if .enabled -}}
-    e_factura.api_url = {{ .api_url }}
-    e_factura.username = {{ .username }}
-    e_factura.password = {{ .password }}
-    e_factura.api_key = {{ .api_key }}
-      {{ end -}}
-    {{ end }}
-
     {{ with .Values.agency.travelify -}}
       {{ if .enabled -}}
     travelify.url = {{ .url }}
       {{ end -}}
     {{ end }}
+
+    {{ with .Values.agency.eurolife -}}
+      {{ if .enabled -}}
+    eurolife.api_url = {{ .api_url }}
+    eurolife.username = {{ .username }}
+    eurolife.password = {{ .password }}
+    eurolife.api_key = {{ .api_key }}
+      {{ end -}}
+    {{ end }}
+
 
     {{- if .Values.agency.companies.enabled}} 
     {{- if .Values.companies.enabled }}

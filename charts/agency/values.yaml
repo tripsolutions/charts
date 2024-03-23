@@ -20,13 +20,13 @@ image:
 ingress:
   enabled: false
 #   admin:
-#     hostnames:
+#     hostnames: 
 #     - agency-ro-staging.dyn.tripsolutions.co.uk
 #   rescheck:
-#     hostnames:
+#     hostnames: 
 #     - rescheck-ro-staging.dyn.tripsolutions.co.uk
 #   tls: true
-#   annotations:
+#   annotations: 
 #     cert-manager.io/cluster-issuer: letsencrypt-staging
 #     external-dns.alpha.kubernetes.io/hostname: agency-ro-staging.dyn.tripsolutions.co.uk
 
@@ -36,7 +36,7 @@ agency:
   forTV: false
   market: ro
   rescheck: true
-  jwt:
+  jwt: 
     https_only_cookies: null
     samesite: null
   cron:
@@ -65,8 +65,7 @@ agency:
   gate_e:
     env: test
     url: false # specify full URL to override env
-  pnrConverter:
-    null
+  pnrConverter: null
     # public_key: null
     # private_key: null
   stuba_api:
@@ -94,23 +93,22 @@ agency:
     username: test.partener@test.ro
     password: 123qweQWE!
     api_key: 05e60e0a-2cef-47ec-a799-86607e275762
-
   cors:
     # enable CORS for the websites (list clients)
     free: false
     websites: []
     # urls:
     #  - https://www.etripagency.ro
-    #  - https://etripagency.ro
-    #  - https://www.etrip-agency.ro
+    #  - https://etripagency.ro 
+    #  - https://www.etrip-agency.ro 
     #  - https://etrip-agency.ro
     #  - https://www.etripagency.co.uk
     #  - https://etripagency.co.uk
     #  - https://www.etrip-agency.co.uk
-    #  - https://etrip-agency.co.uk
-    #  - https://www.etripagency.com
-    #  - https://etripagency.com
-    #  - https://www.etrip-agency.com
+    #  - https://etrip-agency.co.uk 
+    #  - https://www.etripagency.com 
+    #  - https://etripagency.com 
+    #  - https://www.etrip-agency.com 
     #  - https://etrip-agency.com
   companies:
     enabled: true
@@ -136,11 +134,11 @@ mail:
 db:
   provider: zalando
 
-  parameters:
+  parameters: 
     max_connections: "100"
     shared_buffers: 1GB
     temp_buffers: 32MB
-    work_mem: 32MB
+    work_mem: 32MB 
     timezone: "Europe/Berlin"
     maintenance_work_mem: 32MB
     autovacuum_work_mem: 32MB
@@ -162,7 +160,7 @@ db:
     ## CNPG specific:
     # resizeInUseVolumes: true
     # pvcTemplate: {}
-
+  
   # allowCloneFrom: <namespace>
   allowCloneFrom: null
 
@@ -182,17 +180,16 @@ db:
     enabled: false
     bucket: k8s-pg-wal
     uid: null
-
+  
   ## CNPG specific:
   image:
     pullPolicy: IfNotPresent
     registry: ghcr.io/cloudnative-pg
     name: postgresql
     tag: 13.11
-
+  
   ## CNPG specific:
-  generateIssuer:
-    true
+  generateIssuer: true
     # true: generate a CA cert using provided caIssuer
     # false: use provided caIssuer as CA; as such, must not be a self-signing issuer
   caIssuer:
@@ -336,7 +333,7 @@ db:
   overrides: null
   ## directly override rendered template values here
 
-  bootstrap:
+  bootstrap: 
     mode: normal
     ## * normal: bootstrap a new cluster
     ## * recovery: recover a cluster from a backup
@@ -370,7 +367,7 @@ db:
       ## * cluster - clone from a custom cluster fully defined under clone.cluster
       # namespace: production
       # name: <agency-install-name>
-      # cluster:
+      # cluster: 
       #   connectionParameters:
       #     host: <hostname>
       #     user: <replication-user>
@@ -389,22 +386,22 @@ db:
       #     key: <secret-key>
 
     transitionPhase: standby_fence
-    # one of:
-    # - "standby_fence" - CNPG initiates a clone from zalando, puts it in
+    # one of: 
+    # - "standby_fence" - CNPG initiates a clone from zalando, puts it in 
     #   fenced mode and waits for operator intervention
-    #   Operator needs to execute cleanup.sh script and then set
+    #   Operator needs to execute cleanup.sh script and then set 
     #   .transitionPhase to "standby"
-    # - "standby" - Assumes that previous phase was "standby_fence" and that
+    # - "standby" - Assumes that previous phase was "standby_fence" and that 
     #   cleanup.sh was executed. Fence will be removed.
     # - "full" - Assumes that previous phase was standby or standby_fence and
     #   that cleanup.sh was executed. Fence will be removed and standby will be
     #   promoted to master, new timeline will be created.
-    # While transitioning both databases will coexist. Provider will dictate which
-    # database is used by the application. You can switch provider while
-    # transitioning after unfencing, or you can switch it after fully
-    # transitioning. Once .transitionPhase is set back to null the other
+    # While transitioning both databases will coexist. Provider will dictate which 
+    # database is used by the application. You can switch provider while 
+    # transitioning after unfencing, or you can switch it after fully 
+    # transitioning. Once .transitionPhase is set back to null the other 
     # operator's database will be purged!
-
+    
     standby: false
     ## creates a standby cluster using the same source as the clone or recovery
 
@@ -417,10 +414,10 @@ db:
       secretName: wasabi-creds
 
   ## CNPG specific: affinity rules
-  ## See CNPG docs for details:
+  ## See CNPG docs for details: 
   ## https://cloudnative-pg.io/documentation/1.20/api_reference/#affinityconfiguration
   ## example:
-  # affinity:
+  # affinity: 
   #   enablePodAntiAffinity: true
   #   topologyKey: kubernetes.io/hostname
   #   nodeSelector:
@@ -491,20 +488,21 @@ global:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
     extraQueries:
       pg_replication:
-        query: SELECT
-          CASE WHEN pg_is_in_recovery()
-          THEN extract(EPOCH FROM CURRENT_TIMESTAMP -
-          pg_last_xact_replay_timestamp())
-          ELSE NULL END AS lag,
-          pg_wal_lsn_diff(
-          CASE WHEN pg_is_in_recovery()
-          THEN pg_last_wal_replay_lsn()
-          ELSE pg_current_wal_lsn() END,
-          '0/0') AS current_lsn;
+        query:
+          SELECT 
+            CASE WHEN pg_is_in_recovery() 
+            THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
+                pg_last_xact_replay_timestamp()) 
+            ELSE NULL END AS lag,
+            pg_wal_lsn_diff(
+              CASE WHEN pg_is_in_recovery()
+              THEN pg_last_wal_replay_lsn() 
+              ELSE pg_current_wal_lsn() END,
+              '0/0') AS current_lsn;
         metrics:
-          - lag:
-              usage: GAUGE
-              description: Replication lag behind master in seconds
-          - current_lsn:
-              usage: COUNTER
-              description: Current WAL/LSN stream location in bytes
+        - lag: 
+            usage: GAUGE
+            description: Replication lag behind master in seconds
+        - current_lsn:
+            usage: COUNTER
+            description: Current WAL/LSN stream location in bytes
