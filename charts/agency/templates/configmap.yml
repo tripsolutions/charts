@@ -157,7 +157,7 @@ data:
 
     {{ with .Values.agency.eurolife -}}
       {{ if .enabled -}}
-    eurolife.api_url = {{ .api_url }}
+    eurolife.api_url = {{ .url }}
     eurolife.username = {{ .username }}
     eurolife.password = {{ .password }}
     eurolife.api_key = {{ .api_key }}
