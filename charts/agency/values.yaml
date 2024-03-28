@@ -87,6 +87,12 @@ agency:
     application_id: NULL
     private_key: NULL
   tinymce_key: null
+  eurolife:
+    enabled: false
+    url: https://testpartners.eurolife-asigurari.ro:5651/api
+    #username: username
+    #password: password
+    #api_key: apiKey
   cors:
     # enable CORS for the websites (list clients)
     free: false

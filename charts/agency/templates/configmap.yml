@@ -155,6 +155,15 @@ data:
       {{ end -}}
     {{ end }}
 
+    {{ with .Values.agency.eurolife -}}
+      {{ if .enabled -}}
+    eurolife.api_url = {{ .api_url }}
+    eurolife.username = {{ .username }}
+    eurolife.password = {{ .password }}
+    eurolife.api_key = {{ .api_key }}
+      {{ end -}}
+    {{ end }}
+
     {{- if .Values.agency.companies.enabled}} 
     {{- if .Values.companies.enabled }}
     cumulus.companies_url = http://{{ include "companies.releaseName" . }}-api/api
