@@ -90,9 +90,9 @@ agency:
   eurolife:
     enabled: false
     url: https://testpartners.eurolife-asigurari.ro:5651/api
-    username: test.partener@test.ro
-    password: 123qweQWE!
-    api_key: 05e60e0a-2cef-47ec-a799-86607e275762
+    #username: username
+    #password: password
+    #api_key: apiKey
   cors:
     # enable CORS for the websites (list clients)
     free: false
