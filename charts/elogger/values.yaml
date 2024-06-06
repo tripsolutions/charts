@@ -1,0 +1,86 @@
+ingress:
+  enabled: false
+  hostnames: [] # list of hostnames for the ingress
+  tls: false
+  annotations: null
+  auth:
+    enabled: false
+    users: []
+db:
+  replicas: 1
+  image:
+    pullPolicy: IfNotPresent
+    registry: ghcr.io/tripsolutions
+    name: postgresql
+    tag: 16.3-cron-timescaledb-2.15.1
+  parameters:
+    timescaledb.license: timescale
+  storage:
+    size: 1Gi
+    storageClass: default
+  bootstrap:
+      initdb:
+        database: elogger
+        encoding: UTF8
+        localeCType: en_US.UTF-8
+        localeCollate: en_US.UTF-8
+        owner: elogger
+        postInitApplicationSQL:
+          - CREATE TABLE IF NOT EXISTS catalog (
+              oid REGCLASS NOT NULL PRIMARY KEY,
+              description TEXT,
+              reference REGCLASS REFERENCES catalog(oid) ON UPDATE CASCADE ON DELETE CASCADE,
+              ctime_min TIMESTAMP WITH TIME ZONE,
+              ctime_max TIMESTAMP WITH TIME ZONE,
+              retention INTERVAL
+            );
+          - ALTER TABLE catalog OWNER TO elogger;
+          - CREATE TABLE IF NOT EXISTS template (
+              ctime	timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              ip 	inet,
+              host	varchar(80),
+              userid	integer,
+              username varchar(80),
+              type	varchar(100),
+              level	integer,
+              event	varchar(200),
+              data	bytea
+            );
+          - ALTER TABLE template OWNER TO elogger;
+          - CREATE INDEX ON template (ctime);
+          - CREATE INDEX ON template (level);
+          - CREATE INDEX ON template (type);
+          - CREATE INDEX ON template (userid);
+          - CREATE INDEX ON template (username);
+          - CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+  backup: null
+  logLevel: info
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  # instance of https://cloudnative-pg.io/documentation/1.23/cloudnative-pg.v1/#postgresql-cnpg-io-v1-AffinityConfiguration
+  affinity: null
+  annotations: null
+
+web:
+  enabled: true
+  replicas: 1
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: elogger
+    tag: latest
+  resources:
+    limits:
+      cpu: 100m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  # regular k8s affinity, see https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+  affinity: {}
+  annotations: {}

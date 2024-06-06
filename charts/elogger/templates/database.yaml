@@ -1,0 +1,31 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-db
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "labels" . | nindent 4 }}
+  {{- with .Values.db.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  bootstrap:
+    {{- toYaml .Values.db.bootstrap | nindent 4 }}
+  {{- with .Values.db.backup }}
+  backup:  
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  imageName: {{ include "image" .Values.db.image }}
+  {{- with .Values.db.image.pullPolicy }}
+  imagePullPolicy: {{ . }}
+  {{- end }}
+  postgresql:
+    parameters: {{- toYaml .Values.db.parameters | nindent 6 }}
+    shared_preload_libraries:
+    - timescaledb
+  instances: {{ .Values.db.replicas }}
+  logLevel: {{ .Values.db.logLevel }}
+  resources: {{ toYaml .Values.db.resources | nindent 4 }}
+  {{- with .Values.db.affinity }}
+  affinity: {{ toYaml . | nindent 4 }}
+  {{- end }}
+  storage: {{ toYaml .Values.db.storage | nindent 4}}

@@ -1,0 +1,48 @@
+{{- if .Values.web.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels: {{- include "selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "labels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: elogger
+        image: {{ include "image" .Values.web.image }}
+        {{- with .Values.web.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        resources: {{ toYaml .Values.web.resources | nindent 8 }}
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        env:
+        - name: ENV_CONFIG
+          value: "true"
+        - name: ELOGGER_DIR
+          value: /tmp/elogger
+        - name: ELOGGER_DBHOST
+          value: {{ .Release.Name }}-db-rw
+        - name: ELOGGER_DBNAME
+          value: elogger
+        - name: ELOGGER_DBUSER
+          value: elogger
+        - name: ELOGGER_DBPASS
+          valueFrom:
+            secretKeyRef: 
+              name: {{ .Release.Name }}-db-app
+              key: password
+        - name: ELOGGER_TABLE
+          value: "none"
+{{- end }}

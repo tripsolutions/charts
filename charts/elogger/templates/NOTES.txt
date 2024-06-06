@@ -1,0 +1,2 @@
+(c) Tripsolutions Ltd
+eTrip logger service {{ .Chart.AppVersion }}
