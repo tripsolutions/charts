@@ -1083,6 +1083,17 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/companies-0.0.13/companies-0.0.13.tgz
     version: 0.0.13
+  elogger:
+  - apiVersion: v1
+    appVersion: 0.0.1
+    created: "2024-06-06T11:38:10.346622188Z"
+    description: eTrip logger service
+    digest: 9a2f78850c8ceabacf732227a3929efe18d102ed74386c53d6f5a7a683afd0c5
+    name: elogger
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/elogger-0.0.1/elogger-0.0.1.tgz
+    version: 0.0.1
   etrip:
   - apiVersion: v1
     appVersion: 5.1.75
@@ -1904,4 +1915,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2024-03-28T13:16:17.073706023Z"
+generated: "2024-06-06T11:38:10.346952749Z"
