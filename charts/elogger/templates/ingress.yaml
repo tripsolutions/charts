@@ -1,8 +1,19 @@
 {{- if and .Values.ingress.enabled .Values.web.enabled }}
 {{- if .Values.ingress.auth.enabled }}
 {{- $htpasswd := list }}
-{{- range .Values.ingress.auth.users }}
-{{- $htpasswd = (htpasswd .username .password) | append $htpasswd }}
+{{- /* there are two possibilities for the password, depending on ingress.auth.encrypted: */}}
+{{- if .Values.ingress.auth.encrypted}}
+{{- /* 1. pre-encrypted passwords, directly using them in the secret (format: username:password) */}}
+{{-   range .Values.ingress.auth.users }}
+{{-   $htpasswd = (printf "%s:%s" .username .password) | append $htpasswd }}
+{{-   end }}
+
+{{- else }}
+{{- /* 2. plain text password, encoding it using htppasswd so that it can be used by nginx ingress */}}
+{{-   range .Values.ingress.auth.users }}
+{{-   $htpasswd = (htpasswd .username .password) | append $htpasswd }}
+{{-   end }}
+
 {{- end }}
 apiVersion: v1
 kind: Secret

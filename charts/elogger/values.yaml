@@ -5,6 +5,7 @@ ingress:
   annotations: null
   auth:
     enabled: false
+    encrypted: true
     users: []
 db:
   replicas: 1
