@@ -22,7 +22,7 @@ spec:
         {{- with .Values.web.image.pullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
-        resources: {{ toYaml .Values.web.resources | nindent 8 }}
+        resources: {{ toYaml .Values.web.resources | nindent 10 }}
         ports:
         - containerPort: 80
           name: http
