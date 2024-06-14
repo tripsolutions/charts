@@ -153,8 +153,8 @@ spec:
             - name: ELOGGER_DBPASS
               valueFrom:
                 secretKeyRef: 
-                  name: {{ printf "%s.%s.credentials" .db.username .db.host }}
-                  key: password
+                  name: {{ .db.passwordSecret | default (printf "%s.%s.credentials" .db.username .db.host) }}
+                  key: {{ .db.passwordKey | default "password" }}
             {{- end }}
             - name: ELOGGER_DSN
               value: >-
