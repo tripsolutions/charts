@@ -1086,6 +1086,16 @@ entries:
   elogger:
   - apiVersion: v1
     appVersion: 0.0.1
+    created: "2024-06-14T18:43:22.021610181Z"
+    description: eTrip logger service
+    digest: de1c2c51d8b4cbdf37602391e328f8b1b2891c55d95546727b78925d1f4c1684
+    name: elogger
+    type: application
+    urls:
+    - https://github.com/tripsolutions/charts/releases/download/elogger-0.0.3/elogger-0.0.3.tgz
+    version: 0.0.3
+  - apiVersion: v1
+    appVersion: 0.0.1
     created: "2024-06-06T14:16:38.740314596Z"
     description: eTrip logger service
     digest: 0623b6f3a6491dc5c3e50de4adc0a39e764becbe58586f22bd236af20b8c0a94
@@ -1925,4 +1935,4 @@ entries:
     urls:
     - https://github.com/tripsolutions/charts/releases/download/etrip-0.2.22/etrip-0.2.22.tgz
     version: 0.2.22
-generated: "2024-06-06T14:16:38.740894879Z"
+generated: "2024-06-14T18:43:22.021899201Z"
