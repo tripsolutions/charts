@@ -1,14 +1,5 @@
 {{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
 {{- $clusterName := include "clusterName" $ -}}
-{{- $createSecretsVolume := false }}
-{{- $createSecretsVolume = or $createSecretsVolume (eq $db.provider "cnpg") }}
-{{- $createSecretsVolume = or $createSecretsVolume (
-      and .Values.etrip.searchlogs.enabled 
-      .Values.etrip.searchlogs.certificate ) }}
-{{- $createSecretsVolumeMount := $createSecretsVolume -}}
-{{- $createSecretsVolume = or $createSecretsVolume (
-      and .Values.elogger.enabled
-      .Values.elogger.db.certificate) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,14 +31,7 @@ spec:
         fsGroup: 33
       initContainers:
       {{- /* no migrations if standby mode */}}
-      {{- if or 
-            (and (eq $db.provider "zalando") ( not $db.standby.enabled ))
-            (and (eq $db.provider "cnpg") ( not
-                (or $db.bootstrap.standby
-                  (and (eq $db.bootstrap.mode "transition") 
-                       (eq $db.bootstrap.transitionPhase "standby"))
-                )))
-         }}
+      {{- if not $db.bootstrap.standby }}
       - name: migrations
         {{- include "etripImage" . | nindent 8 }}
         command: [ "/var/www/localhost/migrate" ]
@@ -57,26 +41,12 @@ spec:
           subPath: etrip
         - mountPath: /tmp/elogger
           name: elogger
-        {{- if $createSecretsVolumeMount }}
         - mountPath: /secrets
           name: secrets
           readOnly: true
-        {{- end }}
         env:
         - name: ETRIP_CONFIG
           value: /config
-        {{- if eq $db.provider "zalando" }}
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef: 
-              name: etrip. {{- $clusterName -}} .credentials
-              key: password
-        - name: ETRIP_DSN
-          value: >-
-            user=etrip
-            password=$(DB_PASSWORD)
-            host={{ $clusterName }}
-        {{- else if eq $db.provider "cnpg" }}
         - name: ETRIP_DSN
           value: >-
             user=etrip
@@ -84,7 +54,6 @@ spec:
             sslcert=/secrets/app-tls/postgresql.crt
             sslkey=/secrets/app-tls/postgresql.key
             sslrootcert=/secrets/app-tls/root.crt
-        {{- end }}
         resources:
           {{- toYaml .Values.resources.migrate | nindent 10 }}
       {{- end }}
@@ -119,34 +88,12 @@ spec:
         - mountPath: /frontends
           name: frontends
         {{- end}}
-        {{- if $createSecretsVolumeMount }}
         - mountPath: /secrets
           name: secrets
           readOnly: true
-        {{- end }}
         env:
         - name: ETRIP_CONFIG
           value: /config
-        {{- if eq $db.provider "zalando" }}
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef: 
-              name: etrip. {{- $clusterName -}} .credentials
-              key: password
-        - name: ETRIP_DSN
-          value: >-
-            user=etrip
-            password=$(DB_PASSWORD)
-            host={{ $clusterName }}
-        {{- if gt (int .Values.replicas.db) 1 }}
-        - name: ETRIP_DSN_RO
-          value: >-
-            user=etrip
-            password=$(DB_PASSWORD)
-            host={{ $clusterName }}-repl
-            connect_timeout=1
-        {{- end }}
-        {{- else if eq $db.provider "cnpg" }}
         - name: ETRIP_DSN
           value: >-
             user=etrip
@@ -161,7 +108,6 @@ spec:
             sslcert=/secrets/app-tls/postgresql.crt
             sslkey=/secrets/app-tls/postgresql.key
             sslrootcert=/secrets/app-tls/root.crt
-        {{- end }}
         {{- if .Values.etrip.use_redis }}
         - name: REDIS_SECRET
           valueFrom:
@@ -346,11 +292,9 @@ spec:
           - key: b2b-{{$b2bkey}}.json
             path: etrip/b2b-{{$b2bkey}}.json
           {{ end }}
-      {{- if $createSecretsVolume }}
       - name: secrets
         projected:
           sources:
-          {{- if eq $db.provider "cnpg" }}
           - secret:
               name: {{ .Release.Name }}-db-app-tls
               items:
@@ -361,7 +305,6 @@ spec:
                 mode: 416
               - key: ca.crt
                 path: app-tls/root.crt
-          {{- end }}
           {{- with .Values.etrip.searchlogs }}
           {{- if and .enabled .certificate }}
           - secret:
@@ -388,7 +331,6 @@ spec:
               - key: ca.crt
                 path: elogger-tls/root.crt
           {{- end }}{{ end }}
-      {{- end }}
       - name: elogger
         emptyDir: {}
       {{- if .Values.frontends.enabled}}
