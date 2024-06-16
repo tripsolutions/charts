@@ -102,7 +102,7 @@ spec:
                 user={{ .username }}
                 dbname={{ .dbname }}
                 host={{ .host }}
-                {{- if not .certificate }}}
+                {{- if not .certificate }}
                 password=$(SEARCHLOGS_DBPASSWORD)
                 {{- else }}
                 sslcert=/secrets/searchlogs-tls/postgresql.crt
