@@ -1,5 +1,4 @@
 {{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
-{{- if or (eq $db.provider "cnpg") (eq $db.bootstrap.mode "transition")  -}}
 {{- if $db.generateIssuer }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -144,27 +143,10 @@ kind: Cluster
 metadata:
   name: {{ .Release.Name }}-db
   namespace: {{ .Release.Namespace }}
-  {{- /* Fencing mode */}}
-  {{- if and (eq $db.bootstrap.mode "transition") (eq $db.bootstrap.transitionPhase "standby_fence") }}
-  annotations:
-    cnpg.io/fencedInstances: '["*"]'
-  {{- end }}
   labels:
     {{- include "labels" $ | nindent 4 }}
 spec:
-  {{- /*
-    CNPG bug: while transitioning, the multitude of reconciliation errors caused
-    by zalando incompatibilities before cleanup scripts get applied confuse the
-    CNPG operator and cause the cluster to get stuck in an unrecoverable state
-    as far as the operator can see. This is recoverable only if no other 
-    instances are spawned while the first one gets cleaned up. After transition
-    phase is complete (transitionPhase set to full or mode switched away from 
-    "transition") we can allow more than one instance to be spawned. */}}
-  {{- if and (eq $db.bootstrap.mode "transition") $db.bootstrap.transitionPhase }}
-  instances: 1
-  {{- else }}
   instances: {{ .Values.replicas.db }}
-  {{- end }}
   imageName: {{ $db.image.registry -}} 
             / {{- $db.image.name -}} 
             : {{- $db.image.tag }}
@@ -223,4 +205,3 @@ spec:
   schedule: {{ .schedule | quote }}
   backupOwnerReference: self
 {{- end }}{{ end }}{{/* s3 enabled, schedule, backup */}}
-{{- end }}

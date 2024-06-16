@@ -814,8 +814,6 @@ cron: []
 #   resources: {} 
 
 db:
-  provider: zalando # cnpg or zalando
-
   dbParameters:
     max_connections: "100"
     shared_buffers: 1GB
@@ -851,7 +849,7 @@ db:
     pullPolicy: IfNotPresent
     registry: ghcr.io/tripsolutions
     name: postgresql
-    tag: 11.20-cron
+    tag: 16.1-cron
   
   ## CNPG specific:
   generateIssuer: true
@@ -895,27 +893,6 @@ db:
       encryption: AES256
     {{- end }}{{/* define "etrip.db.template.objectStore" */}}
 
-    {{- if eq .db.bootstrap.mode "transition" }}
-    {{/* transition mode is very particular so we have a dedicated section */}}
-    {{- $phase := .db.bootstrap.transitionPhase }}
-    bootstrap:
-      pg_basebackup:
-        database: etrip
-        source: zalando
-    {{- if or (eq $phase "standby") (eq $phase "standby_fence") }}
-    replica:
-      enabled: true
-      source: zalando
-    {{- end }}{{/* $phase is standby */}}
-    externalClusters:
-    - name: zalando
-      connectionParameters:
-        host: {{ .Release.Name }}-cluster
-        user: standby
-      password:
-        name: standby.{{ .Release.Name }}-cluster.credentials
-        key: password
-    {{- else }}{{/* .db.bootstrap.mode != "transition" */}}
     bootstrap:
       {{- if eq .db.bootstrap.mode "normal" }}
       initdb:
@@ -939,7 +916,7 @@ db:
     - name: bootstrap
       {{- $s3 := mergeOverwrite (deepCopy .db.backup.s3) ( .db.bootstrap.recovery.s3Override | default dict ) }}
       {{- /* server name is by default same as externalCluster's name */}}
-      {{- $s3 := merge $s3 ( dict "serverName" (print .Release.Name "-db") )}}
+      {{- $s3 := merge $s3 ( dict "serverName" (print .Release.Name "-db-pg16") )}}
       barmanObjectStore: {{ include "etrip.db.template.objectStore" $s3 | nindent 8 }}
         {{- else if eq .db.bootstrap.recovery.source "backup" }}
         backup: {{ .db.bootstrap.recovery.backupName }}
@@ -984,13 +961,13 @@ db:
       enabled: true
       source: bootstrap
     {{- end }}{{/* bootstrap.standby */}}
-    {{- end }}{{/* bootstrap.mode != transition */}}
 
     {{- with .db.backup }}
     {{- if .s3.enabled }}
     backup:
       retentionPolicy: {{ .retentionPolicy | default "90d" }}
       target: {{ .target | default "prefer-standby" }}
+      {{- $s3 := merge .s3 ( dict "serverName" (print $.Release.Name "-db-pg16") ) }}
       barmanObjectStore: {{ include "etrip.db.template.objectStore" .s3 | nindent 4 }}
     {{- end }}
     {{- end }}
@@ -1003,7 +980,6 @@ db:
     ## * normal: bootstrap a new cluster
     ## * recovery: recover a cluster from a backup
     ## * clone: clone a live cluster
-    ## * transition: transition a cluster from zalando to CNPG, observing transitionPhase
     recovery:
       source: objectstore
       ## * objectStore: recover from the object store as defined under backup.s3,
@@ -1049,23 +1025,6 @@ db:
       #   sslRootCert:
       #     name: <secret-name>
       #     key: <secret-key>
-
-    transitionPhase: standby_fence
-    # one of: 
-    # - "standby_fence" - CNPG initiates a clone from zalando, puts it in 
-    #   fenced mode and waits for operator intervention
-    #   Operator needs to execute cleanup.sh script and then set 
-    #   .transitionPhase to "standby"
-    # - "standby" - Assumes that previous phase was "standby_fence" and that 
-    #   cleanup.sh was executed. Fence will be removed.
-    # - "full" - Assumes that previous phase was standby or standby_fence and
-    #   that cleanup.sh was executed. Fence will be removed and standby will be
-    #   promoted to master, new timeline will be created.
-    # While transitioning both databases will coexist. Provider will dictate which 
-    # database is used by the application. You can switch provider while 
-    # transitioning after unfencing, or you can switch it after fully 
-    # transitioning. Once .transitionPhase is set back to null the other 
-    # operator's database will be purged!
     
     standby: false
     ## creates a standby cluster using the same source as the clone or recovery
@@ -1113,42 +1072,10 @@ db:
 
   # allowCloneFrom: <namespace>
 
-  ## Zalando specific:
-  # clone: 
-  #   cluster: <cluster-name>
-  #   namespace: <namespace>
-  # refresh: 10 2 * * *
-  standby:
-    enabled: false
-    bucket: k8s-pg-wal
-    uid: null
-
   # don't override operator defaults
   resources: {}
   exporter:
     enabled: false
-    # zalando specific
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.10.1
-    extraQueries:
-      pg_replication:
-        query: |-
-          SELECT
-            CASE WHEN pg_is_in_recovery()
-            THEN extract(EPOCH FROM CURRENT_TIMESTAMP - 
-              pg_last_xact_replay_timestamp())
-            ELSE NULL END AS lag,
-            pg_wal_lsn_diff(
-              CASE WHEN pg_is_in_recovery()
-              THEN pg_last_wal_replay_lsn()
-              ELSE pg_current_wal_lsn() END,
-              '0/0') AS current_lsn;
-        metrics:
-        - lag:
-            usage: GAUGE
-            description: Replication lag behind master in seconds
-        - current_lsn:
-            usage: COUNTER
-            description: Current WAL/LSN stream location in bytes
 
 resources:
   migrate:
