@@ -113,7 +113,6 @@ spec:
               value: {{ .table | default ($.global.Release.Name
                 | trimPrefix (print $.global.Chart.Name "-")) 
                 | replace "-" "_" }}
-                 }}
             {{- end }}{{- end }}
             {{- if .cron.env }}
             {{- range .cron.env }}
