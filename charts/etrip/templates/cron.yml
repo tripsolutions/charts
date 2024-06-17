@@ -62,7 +62,7 @@ spec:
             - name: SEARCHLOGS_DBPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s.%s.credentials" .username .host | default .passwordSecret }}
+                  name: {{ .passwordSecret | default (printf "%s.%s.credentials" .username .host) }}
                   key: password
             {{- end }}
             - name: ETRIP_SEARCHLOGS_DSN
