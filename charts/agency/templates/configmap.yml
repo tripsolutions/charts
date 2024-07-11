@@ -155,6 +155,12 @@ data:
       {{ end -}}
     {{ end }}
 
+    {{ with .Values.agency.anaf -}}
+      {{ if .enabled -}}
+    anaf.vat_search_url = {{ .vat_search_url }}
+      {{ end -}}
+    {{ end }}
+
     {{ with .Values.agency.eurolife -}}
       {{ if .enabled -}}
     eurolife.api_url = {{ .url }}
