@@ -81,6 +81,7 @@ agency:
     webservice_url: https://webservicesp.anaf.ro
     client_id: client_id
     client_secret: client_secret
+    vat_search_url: https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva
   travelify:
     enabled: false
     url: https://api.travelify.io

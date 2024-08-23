@@ -149,6 +149,8 @@ data:
       {{ end -}}
     {{ end }}
 
+    anaf.vat_search_url = {{ .Values.agency.e_factura.vat_search_url | default "https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva" }}
+
     {{ with .Values.agency.travelify -}}
       {{ if .enabled -}}
     travelify.url = {{ .url }}
