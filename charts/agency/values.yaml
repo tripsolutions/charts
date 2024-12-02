@@ -82,6 +82,12 @@ agency:
     client_id: client_id
     client_secret: client_secret
     vat_search_url: https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva
+  freescout:
+    enabled: false
+    api_url: https://helpdesk.tripsolutions.co.uk/api
+    api_key: null
+    mailbox_id: null
+    user_id: null
   travelify:
     enabled: false
     url: https://api.travelify.io

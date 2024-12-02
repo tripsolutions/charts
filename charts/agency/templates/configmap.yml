@@ -149,6 +149,15 @@ data:
       {{ end -}}
     {{ end }}
 
+    {{- with .Values.agency.freescout -}}
+    {{- if .enabled }}
+    freescout.api_url = {{ .api_url }}
+    freescout.api_key = {{ .api_key }}
+    freescout.mailbox_id = {{ .mailbox_id }}
+    freescout.user_id = {{ .user_id }}
+    {{- end }}
+    {{- end }}
+
     anaf.vat_search_url = {{ .Values.agency.e_factura.vat_search_url | default "https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva" }}
 
     {{ with .Values.agency.travelify -}}
