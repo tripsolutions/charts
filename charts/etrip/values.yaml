@@ -1,6 +1,7 @@
 replicas:
   web: 1
   db: 1
+  worker: 1
 
 version: 4.0.66
 
@@ -1120,3 +1121,61 @@ resources:
     requests:
       cpu: 100m
       memory: 50Mi
+  worker:
+    limits:
+      cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+
+etripng:
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+    registry: eu.gcr.io/tripsol
+    name: etrip-ng
+    tag: pr6
+  config:
+    supplier:
+      cyberlogic:
+        connections: {}
+        # # example:
+        #   KCGT:
+        #     url: https://kcg-hub.cyberlogic.cloud/services/jsonwebservice/
+        #     mediaUrl: https://medapi.kcgservices.gr/images/hotels
+        #     login: username
+        #     password: password
+        #     useTariff: true
+        #     noCache: false
+        #     language: en
+        #     currency: EUR
+        #     productType: 7
+        #     supplier: '2775'
+      sansejour:
+        connections: {}
+        # # example:
+        #   ITS:
+        #     baseUrl: http://mementogroup.sansejour.com/sws/
+        #     database: database
+        #     username: username
+        #     password: password
+        #     onlyAvailable: true
+        #     language: EN
+        #     productType: 7
+      travelgatex:
+        url: https://api.travelgatex.com/
+        apiKey: ''
+        clientCode: ''
+        connections: {}
+        # # example:
+        #   tgx-wlcb:
+        #     context: AVRT
+        #     accessCode: password
+        #     language: en
+        #     currency: EUR
+        #     auditTransactions: true
+        #     testMode: false
+        #     supplier: "793"
+        #     productType: 7
+    allowedIPs: [ '127.0.0.1' ]

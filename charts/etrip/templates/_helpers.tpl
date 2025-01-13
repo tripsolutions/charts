@@ -15,6 +15,15 @@ imagePullPolicy: {{ .pullPolicy }}
 {{- end -}}
 {{- end -}}
 
+{{- define "etripngImage" }}
+{{- with .Values.etripng.image -}}
+image: {{ .registry -}} /
+    {{- .name -}} : 
+    {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+imagePullPolicy: {{ .pullPolicy }}
+{{- end -}}
+{{- end -}}
+
 {{- define "frontendsImage" -}}
 {{- with .Values.frontends.image -}}
 image: {{ .registry -}} /

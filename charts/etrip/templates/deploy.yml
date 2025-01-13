@@ -108,12 +108,14 @@ spec:
             sslcert=/secrets/app-tls/postgresql.crt
             sslkey=/secrets/app-tls/postgresql.key
             sslrootcert=/secrets/app-tls/root.crt
-        {{- if .Values.etrip.use_redis }}
+        {{- if or .Values.etrip.use_redis .Values.etripng.enabled }}
         - name: REDIS_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-secrets
               key: session
+        - name: REDIS_URL
+          value: redis://user:$(REDIS_SECRET)@{{ .Release.Name }}-redis:6379/
         {{- end }}
         {{- with .Values.etrip.searchlogs -}}{{- if .enabled }}
         {{- if not .certificate }}

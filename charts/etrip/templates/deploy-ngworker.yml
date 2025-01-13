@@ -1,0 +1,88 @@
+{{- if .Values.etripng.enabled }}
+{{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
+{{- $clusterName := include "clusterName" $ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.replicas.worker }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-ngworker.yml") . | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 33
+      containers:
+      - name: worker
+        command: [ php, /bin/worker.php ]
+        {{- include "etripngImage" . | nindent 8 }}
+        volumeMounts:
+        - mountPath: /app/config.yaml
+          name: config
+          subPath: config.yaml
+        - mountPath: /secrets
+          name: secrets
+          readOnly: true
+        env:
+        - name: ETRIP_DSN
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-rw
+            sslcert=/secrets/app-tls/postgresql.crt
+            sslkey=/secrets/app-tls/postgresql.key
+            sslrootcert=/secrets/app-tls/root.crt
+        - name: ETRIP_DSN_RO
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-r
+            sslcert=/secrets/app-tls/postgresql.crt
+            sslkey=/secrets/app-tls/postgresql.key
+            sslrootcert=/secrets/app-tls/root.crt
+        - name: REDIS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: session
+        - name: REDIS_URL
+          value: redis://user:$(REDIS_SECRET)@{{ .Release.Name }}-redis:6379/
+        resources:
+          {{- toYaml .Values.resources.worker | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-worker
+          items:
+          - key: config.yaml
+            path: config.yaml
+      - name: secrets
+        projected:
+          sources:
+          - secret:
+              name: {{ .Release.Name }}-db-app-tls
+              items:
+              - key: tls.crt
+                path: app-tls/postgresql.crt
+              - key: tls.key
+                path: app-tls/postgresql.key
+                mode: 416
+              - key: ca.crt
+                path: app-tls/root.crt
+{{- end }}
