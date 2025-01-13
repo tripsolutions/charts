@@ -6,6 +6,6 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels: 
     {{- include "labels" . | nindent 4 }}
-data: |
-  config.yaml: {{ .Values.etripng.config | toYaml | nindent 4 }}
+data:
+  config.yaml: |{{ .Values.etripng.config | toYaml | nindent 4 }}
 {{- end }}
