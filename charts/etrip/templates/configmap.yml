@@ -288,7 +288,7 @@ data:
     clear_env = no
     {{- if and $.Values.etrip.use_redis (not (eq $key "ws") ) (not (eq $key "ws_prio") ) }}
     php_value[session.save_handler] = redis
-    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
     {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
@@ -317,7 +317,7 @@ data:
     clear_env = no
     {{- if $.Values.etrip.use_redis }}
     php_value[session.save_handler] = redis
-    php_value[session.save_path] = tcp://{{ $.Release.Name }}-redis:6379?auth%3D${REDIS_SECRET}
+    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
     {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
