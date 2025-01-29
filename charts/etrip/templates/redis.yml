@@ -29,10 +29,8 @@ spec:
         command:
         - /bin/sh
         - -c
-        - |
-          echo "requirepass ${REDIS_PASSWORD}" > /etc/redis.conf
-          redis-server /etc/redis.conf
-        image: redis:alpine
+        - kvrocks --bind 0.0.0.0 --requirepass $REDIS_PASSWORD
+        image: apache/kvrocks:latest
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -40,7 +38,7 @@ spec:
               name: {{ .Release.Name }}-secrets
               key: session
         ports:
-        - containerPort: 6379
+        - containerPort: 6666
           name: redis
           protocol: TCP
         resources:
