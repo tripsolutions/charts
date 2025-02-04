@@ -181,14 +181,6 @@ spec:
           {{- end }}
           - key: etrip-fpm.ini
             path: etrip/fpm.ini
-          {{- if .Values.frontends.enabled }}
-          - key: frontends-nginx.conf
-            path: frontends/nginx.conf
-          {{- end }}
-          {{ range $b2bkey, $b2b := .Values.b2b}}
-          - key: b2b-{{$b2bkey}}.json
-            path: etrip/b2b-{{$b2bkey}}.json
-          {{ end }}
       - name: secrets
         projected:
           sources:
