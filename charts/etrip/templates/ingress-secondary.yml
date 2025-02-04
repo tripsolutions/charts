@@ -1,0 +1,41 @@
+{{- if and .Values.etripng.secondary_etrip.ingress.enabled .Values.etripng.enabled .Values.etripng.secondary_etrip.enabled }}
+{{- /* annotations merge */}}
+{{- $annotations := mergeOverwrite (deepCopy .Values.ingress.annotations) .Values.etripng.secondary_etrip.ingress.annotations }}
+{{- $name := .Release.Name -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}-secondary-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: secondary-web
+  {{- with $annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  rules:
+  {{- with .Values.etripng.secondary_etrip.ingress }}
+  {{- range .hostnames }}
+  - host: {{ . | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $name }}-secondary-service
+            port:
+              name: etrip
+  {{- end }}{{ end }}
+  {{- if .Values.etripng.secondary_etrip.ingress.tls }}
+  tls:
+  - hosts:
+    {{- with .Values.etripng.secondary_etrip.ingress }}
+    {{- range .hostnames }}
+    - {{ . | quote }}
+    {{- end }}{{ end }}
+    secretName: {{ $name }}-secondary-cert
+  {{- end }}
+{{- end }}

@@ -1,0 +1,19 @@
+{{- if and .Values.etripng.enabled .Values.etripng.secondary_etrip.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-secondary-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: secondary-web
+spec:
+  ports:
+  - name: etrip
+    port: 8080
+    targetPort: etrip
+  selector:
+    {{- include "selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: secondary-web
+  type: ClusterIP
+{{- end }}

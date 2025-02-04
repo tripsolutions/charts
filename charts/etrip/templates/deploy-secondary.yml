@@ -1,0 +1,233 @@
+{{- if and .Values.etripng.enabled .Values.etripng.secondary_etrip.enabled }}
+{{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
+{{- $clusterName := include "clusterName" $ -}}
+{{- /* merge resources for fpm from .Values.resources.fpm and .Values.etripng.secondary_etrip.resources */}}
+{{- $resources := mergeOverwrite (deepCopy .Values.resources.fpm) .Values.etripng.secondary_etrip.resources }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-secondary
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: secondary-web
+spec:
+  replicas: {{ .Values.replicas.web }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: secondary-web
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: secondary-web
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-secondary.yml") . | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 33
+      containers:
+      - name: etrip
+        command: [ "supervisord", "-n", "-c", "/config/supervisor.conf" ]
+        {{- with .Values.etripng.secondary_etrip.image }}
+        image: {{ .registry -}} /
+            {{- .name -}} : 
+            {{- .tag | default $.Values.version | default $.Chart.AppVersion | toString }}
+        imagePullPolicy: {{ .pullPolicy }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        volumeMounts:
+        - mountPath: /config
+          name: config
+          subPath: etrip
+        - mountPath: /tmp/elogger
+          name: elogger
+        - mountPath: /secrets
+          name: secrets
+          readOnly: true
+        env:
+        - name: ETRIP_CONFIG
+          value: /config
+        - name: ETRIP_DSN
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-rw
+            sslcert=/secrets/app-tls/postgresql.crt
+            sslkey=/secrets/app-tls/postgresql.key
+            sslrootcert=/secrets/app-tls/root.crt
+        - name: ETRIP_DSN_RO
+          value: >-
+            user=etrip
+            host={{ .Release.Name }}-db-r
+            sslcert=/secrets/app-tls/postgresql.crt
+            sslkey=/secrets/app-tls/postgresql.key
+            sslrootcert=/secrets/app-tls/root.crt
+        {{- if or .Values.etrip.use_redis .Values.etripng.enabled }}
+        - name: REDIS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: session
+        - name: REDIS_URL
+          value: redis://user:$(REDIS_SECRET)@{{ .Release.Name }}-redis:6379/
+        {{- end }}
+        {{- with .Values.etrip.searchlogs -}}{{- if .enabled }}
+        {{- if not .certificate }}
+        - name: SEARCHLOGS_DBPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .passwordSecret | default (printf "%s.%s.credentials" .username .host) }}
+              key: password
+        {{- end }}
+        - name: ETRIP_SEARCHLOGS_DSN
+          value: >-
+            user={{ .username }}
+            dbname={{ .dbname }}
+            host={{ .host }}
+            {{- if not .certificate }}
+            password=$(SEARCHLOGS_DBPASSWORD)
+            {{- else }}
+            sslcert=/secrets/searchlogs-tls/postgresql.crt
+            sslkey=/secrets/searchlogs-tls/postgresql.key
+            sslrootcert=/secrets/searchlogs-tls/root.crt
+            {{- end }}
+        - name: ETRIP_SEARCHLOGS_TABLE
+          value: {{ .table | default ($.Release.Name
+            | trimPrefix (print $.Chart.Name "-"))
+            | replace "-" "_" }}
+        {{- end }}{{- end }}
+        - name: ETRIP_LOGDIR
+          value: /tmp/elogger
+        - name: ETRIP_VERSION
+          value: {{ .Values.version | quote }}
+        {{- if .Values.smtpgate.enabled }}
+        - name: ETRIP_SMTP_HOST
+          value: {{ .Release.Name }}-service
+        {{- end }}
+        ports:
+        - containerPort: 8080
+          name: etrip
+          protocol: TCP
+        resources:
+          {{- toYaml $resources | nindent 10 }}
+      {{- with .Values.elogger }}
+      {{- if .enabled }}
+      - name: sendlogs
+        # run as non-root
+        securityContext:
+          runAsUser: 33
+          runAsGroup: 33
+        image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
+        imagePullPolicy: {{ .image.pullPolicy }}
+        env:
+        - name: ELOGGER_DIR
+          value: /tmp/elogger
+        {{- if not .db.certificate }}
+        - name: ELOGGER_DBPASS
+          valueFrom:
+            secretKeyRef: 
+              name: {{ .db.passwordSecret | default (printf "%s.%s.credentials" .db.username .db.host) }}
+              key: {{ .db.passwordKey | default "password" }}
+        {{- end }}
+        - name: ELOGGER_DSN
+          value: >-
+            user={{ .db.username }}
+            host={{ .db.host }}
+            dbname={{ .db.dbname }}
+            {{- if not .db.certificate }}
+            password=$(ELOGGER_DBPASS)
+            {{- end }}
+        - name: ELOGGER_TABLE
+          value: {{ .table | default ($.Release.Name
+            | trimPrefix (print $.Chart.Name "-")) 
+            | replace "-" "_" }}
+        - name: ELOGGER_INGRESS
+          value: "false"
+        volumeMounts:
+        - mountPath: /tmp/elogger
+          name: elogger
+        {{- if .db.certificate }}
+        - mountPath: /app/.postgresql
+          name: secrets
+          subPath: elogger-tls
+          readOnly: true
+        {{- end }}
+      {{- end }}{{ end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-secondary-config
+          items:
+          - key: etrip.json
+            path: etrip/config.json
+          - key: etrip-nginx.conf
+            path: etrip/nginx.conf
+          - key: supervisor.conf
+            path: etrip/supervisor.conf
+          {{- if ne (len .Values.etrip.passwords) 0 }}
+          - key: htpasswd
+            path: etrip/htpasswd
+          {{- end }}
+          - key: etrip-fpm.ini
+            path: etrip/fpm.ini
+          {{- if .Values.frontends.enabled }}
+          - key: frontends-nginx.conf
+            path: frontends/nginx.conf
+          {{- end }}
+          {{ range $b2bkey, $b2b := .Values.b2b}}
+          - key: b2b-{{$b2bkey}}.json
+            path: etrip/b2b-{{$b2bkey}}.json
+          {{ end }}
+      - name: secrets
+        projected:
+          sources:
+          - secret:
+              name: {{ .Release.Name }}-db-app-tls
+              items:
+              - key: tls.crt
+                path: app-tls/postgresql.crt
+              - key: tls.key
+                path: app-tls/postgresql.key
+                mode: 416
+              - key: ca.crt
+                path: app-tls/root.crt
+          {{- with .Values.etrip.searchlogs }}
+          {{- if and .enabled .certificate }}
+          - secret:
+              name: {{ .certificate }}
+              items:
+              - key: tls.crt
+                path: searchlogs-tls/postgresql.crt
+              - key: tls.key
+                path: searchlogs-tls/postgresql.key
+                mode: 416
+              - key: ca.crt
+                path: searchlogs-tls/root.crt
+          {{- end }}{{ end}}
+          {{- with .Values.elogger }}
+          {{- if and .enabled .db.certificate }}
+          - secret:
+              name: {{ .db.certificate }}
+              items:
+              - key: tls.crt
+                path: elogger-tls/postgresql.crt
+              - key: tls.key
+                path: elogger-tls/postgresql.key
+                mode: 384
+              - key: ca.crt
+                path: elogger-tls/root.crt
+          {{- end }}{{ end }}
+      - name: elogger
+        emptyDir: {}
+{{- end }}

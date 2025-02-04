@@ -10,6 +10,9 @@ ingress:
   admin:
     hostnames: 
     - etrip-install-name.dyn.tripsolutions.co.uk
+  etripng:
+    hostnames:
+    - etrip-install-name.dyn.tripsolutions.co.uk
 #  frontends:
 #    frontend1: 
 #      hostnames:
@@ -1131,6 +1134,21 @@ resources:
 
 etripng:
   enabled: false
+  secondary_etrip:
+    enabled: false
+    image:
+      pullPolicy: IfNotPresent
+      registry: eu.gcr.io/tripsol
+      name: etrip
+      tag: pr185
+    config: {} # overlayed on top of etrip.config
+    resources: {} # overlayed on top of etrip.resources.fpm
+    fpm: {} # overlayed on top of etrip.fpm
+    ingress:
+      hostnames: []
+      annotations: {}
+      enabled: false
+      tls: false
   image:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol

@@ -1,0 +1,245 @@
+{{- if and .Values.etripng.enabled .Values.etripng.secondary_etrip.enabled }}
+{{- /* we need to overlay etrip config from two sources: .Values.etrip.config and .Values.etripng.secondary_etrip.config */}}
+{{- $etripConfig := mergeOverwrite (deepCopy .Values.etrip.config) .Values.etripng.secondary_etrip.config }}
+{{- /* same with fpm: .Values.etrip.fpm and .Values.etripng.secondary_etrip.fpm */}}
+{{- $fpmConfig := mergeOverwrite (deepCopy .Values.etrip.fpm) .Values.etripng.secondary_etrip.fpm }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-secondary-config
+  namespace: {{ .Release.Namespace }}
+  labels: 
+    {{- include "labels" . | nindent 4 }}
+data:
+  etrip.json: |
+    {{- toJson $etripConfig | nindent 4 }}
+  etrip-nginx.conf: |
+    worker_processes {{ .Values.etrip.nginx.workers | default 1 }};
+    pcre_jit on;
+    error_log /dev/stderr;
+    pid /tmp/nginx.pid;
+    include /etc/nginx/modules-enabled/*.conf;
+    daemon off;
+    events {
+      worker_connections {{ .Values.etrip.nginx.connections | default 1024 }};
+    }
+
+    http {
+      fastcgi_cache_path /tmp/nginx-cache/ levels=1:2 keys_zone=cache:10m inactive=60m;
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      server_tokens off;
+      client_max_body_size 20m;
+      keepalive_timeout 65;
+      sendfile on;
+      tcp_nopush on;
+
+      access_log /dev/stdout;
+      error_log /dev/stderr;
+
+      set_real_ip_from 0.0.0.0/0;
+      real_ip_header X-Forwarded-For;
+      real_ip_recursive on;
+
+      {{- if ne (len .Values.etrip.passwords) 0 }}
+      geo $trusted { 
+        default 0;
+        {{- range $value := .Values.etrip.trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_trusted_ips }}
+        {{ $value }} 1;
+        {{- end }}
+      }
+      {{- end }}
+
+      map $request_uri $slow { 
+        default 0; 
+        {{- range $value := .Values.etrip.slow_urls }}
+        {{ $value }} 1;
+        {{- end }}
+        {{- range $value := .Values.etrip.other_slow_urls }}
+        {{ $value }} 2;
+        {{- end }}
+      }
+
+      map $remote_user $webservice { 
+        default webservice;
+        {{- range $value := .Values.etrip.priority_api_users }}
+        {{ $value }} webservice_prio;
+        {{- end }}
+      }
+
+      upstream webapp {
+        server localhost:{{ $fpmConfig.main.port }} max_fails=0;
+      }
+
+      upstream webservice {
+        server localhost:{{ $fpmConfig.ws.port }} max_fails=0;
+      }
+
+      upstream webservice_prio {
+        server localhost:{{ $fpmConfig.ws_prio.port }} max_fails=0;
+      }
+
+      upstream background {
+        server localhost:{{ $fpmConfig.slow.port }} max_fails=0;
+      }
+
+      server {
+        listen *:8080;
+        server_name localhost;
+        root /var/www/localhost/webapp;
+        location @404 { internal; }
+        index index.php index.html;
+        
+        {{- if ne (len .Values.etrip.passwords) 0 }}
+        set $auth_realm "etrip backend";
+        if ($trusted != 0) {
+          set $auth_realm off;
+        }
+        auth_basic $auth_realm;
+        auth_basic_user_file /config/htpasswd;
+        {{- end }}
+
+        fastcgi_split_path_info ^(.+\.php)(.*)$;
+        fastcgi_index index.php;
+        fastcgi_intercept_errors off;
+        error_page 404 @404;
+        include /etc/nginx/fastcgi.conf;
+
+        location @slow {
+          fastcgi_read_timeout 300s;
+          fastcgi_connect_timeout 300s;
+          fastcgi_send_timeout 300s; 
+          fastcgi_pass background;
+        }
+
+        location / {
+          location /api {
+            auth_basic off;
+            try_files $uri /apiv2/index.php$is_args$args;
+          }
+ 
+          location /swagger {
+            auth_basic off;
+          }
+
+          location ~ \.php {
+            error_page 418 = @slow;
+            fastcgi_pass webapp;
+
+            location ~ ^/wscsv\.php$ {
+              auth_basic off;
+              fastcgi_pass webapp;
+            }
+
+            # cache requests for files, URLs: /file.php?file=<id>
+            # and turn auth basic off for them
+            location ~ ^/file\.php$ {
+              auth_basic off;
+              fastcgi_cache cache;
+              fastcgi_cache_valid 200 60m;
+              fastcgi_cache_methods GET HEAD;
+              fastcgi_cache_bypass $cookie_nocache $arg_nocache$arg_comment;
+              add_header X-Cache $upstream_cache_status;
+              fastcgi_cache_key "custom/files/$arg_file";
+
+              fastcgi_pass webapp;
+            }
+
+            location ~ ^/(ws|json|apiv2/index)\.php {
+              auth_basic off;
+              fastcgi_pass $webservice;
+            }
+
+            if ($slow = 1) {
+              return 418;
+            }
+          }
+        }
+
+        location ~ ^/(status|ping)$ {
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_index index.php;
+            include /etc/nginx/fastcgi_params;
+            fastcgi_pass webapp;
+        }
+      }
+
+      client_body_temp_path /tmp/client_body;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
+    }
+  {{- if ne (len .Values.etrip.passwords) 0 }}
+  htpasswd: |
+    {{- range $key, $val := .Values.etrip.passwords }}
+    {{$key}}:{{$val}}
+    {{- end }}
+  {{- end }}
+  etrip-fpm.ini: |
+    [global]
+    daemonize = no
+    error_log = /dev/stderr
+
+    {{- range $key, $val := $fpmConfig }}
+    {{- if not ($val.disabled) }}
+
+    [fpm-{{$key}}]
+    listen = {{ $val.port }}
+    pm = {{ $val.mode | default "dynamic" }}
+    pm.max_children = {{ $val.max }}
+    pm.start_servers = {{ $val.start }}
+    pm.min_spare_servers = {{ $val.low }}
+    pm.max_spare_servers = {{ $val.high }}
+    ping.path = /ping
+    request_terminate_timeout = 300
+    clear_env = no
+    {{- if $.Values.etrip.use_redis }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
+    {{- end }}
+    {{- with $val.phpValues -}}
+    {{- range $pkey, $pval := . }}
+    php_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- with $val.phpAdminValues -}}
+    {{- range $pkey, $pval := . }}
+    php_admin_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- end }}
+    {{- end }}
+
+    {{- range $key, $instance := .Values.b2b }}
+    {{ $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
+    {{- if not ($val.disabled) }}
+
+    [fpm-b2b-{{$key}}]
+    listen = {{ $val.port }}
+    pm = {{ $val.mode | default "dynamic" }}
+    pm.max_children = {{ $val.max }}
+    pm.start_servers = {{ $val.start }}
+    pm.min_spare_servers = {{ $val.low }}
+    pm.max_spare_servers = {{ $val.high }}
+    ping.path = /ping
+    request_terminate_timeout = 300
+    clear_env = no
+    {{- if $.Values.etrip.use_redis }}
+    php_value[session.save_handler] = redis
+    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
+    {{- end }}
+    {{- with $val.phpValues -}}
+    {{- range $pkey, $pval := . }}
+    php_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    {{- with $val.phpAdminValues -}}
+    {{- range $pkey, $pval := . }}
+    php_admin_value[{{$pkey}}] = {{$pval}}
+    {{- end }}{{end}}
+    env[B2B_CONFIG] = /config/b2b-{{$key}}.json
+    {{- end }}
+    {{- end }}
+{{- end }}
