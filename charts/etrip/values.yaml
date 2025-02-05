@@ -1133,6 +1133,10 @@ resources:
       memory: 50Mi
 
 etripng:
+  worker:
+    env:
+      PG_POOLER_MAX_CONNECTIONS: 25
+      REDIS_BUS_PROCESS_QUEUE_CONCURRENCY: 25
   enabled: false
   secondary_etrip:
     enabled: false
