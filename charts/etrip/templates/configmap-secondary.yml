@@ -233,7 +233,7 @@ data:
     clear_env = no
     {{- if $.Values.etrip.use_redis }}
     php_value[session.save_handler] = redis
-    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
+    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}&prefix=PHPSESS2"
     {{- end }}
     {{- with $val.phpValues -}}
     {{- range $pkey, $pval := . }}
@@ -243,36 +243,6 @@ data:
     {{- range $pkey, $pval := . }}
     php_admin_value[{{$pkey}}] = {{$pval}}
     {{- end }}{{end}}
-    {{- end }}
-    {{- end }}
-
-    {{- range $key, $instance := .Values.b2b }}
-    {{ $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
-    {{- if not ($val.disabled) }}
-
-    [fpm-b2b-{{$key}}]
-    listen = {{ $val.port }}
-    pm = {{ $val.mode | default "dynamic" }}
-    pm.max_children = {{ $val.max }}
-    pm.start_servers = {{ $val.start }}
-    pm.min_spare_servers = {{ $val.low }}
-    pm.max_spare_servers = {{ $val.high }}
-    ping.path = /ping
-    request_terminate_timeout = 300
-    clear_env = no
-    {{- if $.Values.etrip.use_redis }}
-    php_value[session.save_handler] = redis
-    php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
-    {{- end }}
-    {{- with $val.phpValues -}}
-    {{- range $pkey, $pval := . }}
-    php_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    {{- with $val.phpAdminValues -}}
-    {{- range $pkey, $pval := . }}
-    php_admin_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    env[B2B_CONFIG] = /config/b2b-{{$key}}.json
     {{- end }}
     {{- end }}
 {{- end }}
