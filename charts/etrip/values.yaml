@@ -47,6 +47,8 @@ etrip:
       phpValues:
         <<: *phpValues
     ws:
+      # by default, the ws pool does not use redis session storage
+      no_redis: true
       port: 8001
       max: 32
       start: 5
@@ -57,6 +59,8 @@ etrip:
         session.gc_maxlifetime: 900
     ws_prio:
       disabled: true
+      # by default, the ws_prio pool does not use redis session storage
+      no_redis: true
       port: 8001
       max: 4
       start: 2
