@@ -69,6 +69,10 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources.worker | nindent 10 }}
+        ports:
+        - name: metrics
+          containerPort: 10250
+          protocol: TCP
       volumes:
       - name: config
         configMap:

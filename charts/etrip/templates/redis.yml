@@ -29,8 +29,9 @@ spec:
         command:
         - /bin/sh
         - -c
-        - kvrocks --bind 0.0.0.0 --requirepass $REDIS_PASSWORD
-        image: apache/kvrocks:latest
+        - kvrocks --bind 0.0.0.0 --requirepass $REDIS_PASSWORD {{ range $key, $value := .Values.kvrocks.config }}--{{ $key }} {{ $value | quote }} {{ end }}
+        image: {{ .Values.kvrocks.image.name }}:{{ .Values.kvrocks.image.tag }}
+        imagePullPolicy: {{ .Values.kvrocks.image.pullPolicy }}
         env:
         - name: REDIS_PASSWORD
           valueFrom:

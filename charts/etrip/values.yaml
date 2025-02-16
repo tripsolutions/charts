@@ -1135,7 +1135,17 @@ resources:
     requests:
       cpu: 100m
       memory: 50Mi
-
+  
+kvrocks:
+  image:
+    pullPolicy: IfNotPresent
+    name: apache/kvrocks
+    tag: 2.11.1
+  config:
+    block_cache_size: 1024 # MB
+    compaction-checker-cron: "22 * * * *" # every hour at minute 22
+    dbsize-scan-cron: "*/15 * * * *" # every 15 minutes
+    max-backups-to-keep: 0 # 0 means no backup, 1 means keep only the latest backup (no other values allowed)
 etripng:
   worker:
     env:
