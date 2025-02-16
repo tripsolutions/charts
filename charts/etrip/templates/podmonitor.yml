@@ -1,0 +1,17 @@
+{{- if and .Values.etripng.enabled .Values.etripng.worker.metrics }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Release.Name }}-worker-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+{{- end }}

@@ -1141,6 +1141,7 @@ etripng:
     env:
       PG_POOLER_MAX_CONNECTIONS: 25
       REDIS_BUS_PROCESS_QUEUE_CONCURRENCY: 25
+    metrics: true
   enabled: false
   secondary_etrip:
     enabled: false
@@ -1161,7 +1162,7 @@ etripng:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
     name: etrip-ng
-    tag: pr6
+    tag: main
   config:
     supplier:
       cyberlogic:
