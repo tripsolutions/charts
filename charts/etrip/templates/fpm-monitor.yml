@@ -8,6 +8,9 @@ metadata:
     {{- include "labels" . | nindent 4 }}
     app.kubernetes.io/component: web
 spec:
+  jobLabel: app.kubernetes.io/instance
+  podTargetLabels:
+  - app.kubernetes.io/component
   podMetricsEndpoints:
   - port: metrics
   selector:

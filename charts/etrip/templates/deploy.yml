@@ -277,11 +277,15 @@ spec:
       {{- if .Values.etrip.monitoring.enabled }}
       {{- $monitorScrapeUri := "" }}
       {{- range $val := .Values.etrip.fpm }}
-        {{- $monitorScrapeUri = printf "%s,tcp://127.0.0.1:%d/status" $monitorScrapeUri (add 500 $val.port)  }}
+        {{- if not $val.disabled }}
+          {{- $monitorScrapeUri = printf "%s,tcp://127.0.0.1:%d/status" $monitorScrapeUri (add 500 $val.port)  }}
+        {{- end }}
       {{- end }}
       {{- range $key, $instance := .Values.b2b }}
         {{- $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
-        {{- $monitorScrapeUri = printf "%s,tcp://127.0.0.1:%d/status" $monitorScrapeUri (add 500 $val.port)  }}
+        {{- if not $val.disabled }}
+          {{- $monitorScrapeUri = printf "%s,tcp://127.0.0.1:%d/status" $monitorScrapeUri (add 500 $val.port)  }}
+        {{- end }}
       {{- end }}
       {{- $monitorScrapeUri = trimPrefix "," $monitorScrapeUri }}
       - name: fpm-exporter
