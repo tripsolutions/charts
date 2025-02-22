@@ -37,6 +37,13 @@ etrip:
   use_redis: true
   phpValues: &phpValues
     session.gc_maxlifetime: 14400
+  monitoring:
+    enabled: false
+    image:
+      pullPolicy: IfNotPresent
+      registry: hipages
+      name: php-fpm_exporter
+      tag: 2.2.0
   fpm: 
     main:
       port: 8000
@@ -789,6 +796,7 @@ b2b_defaults:
     tag: latest
   
   fpm:
+    monitor: false
     max: 16
     start: 5
     low: 2

@@ -273,9 +273,7 @@ data:
     daemonize = no
     error_log = /dev/stderr
 
-    {{- range $key, $val := .Values.etrip.fpm }}
-    {{- if not ($val.disabled) }}
-
+    {{- range $key, $val := .Values.etrip.fpm }}{{- if not ($val.disabled) }}
     [fpm-{{$key}}]
     listen = {{ $val.port }}
     pm = {{ $val.mode | default "dynamic" }}
@@ -286,25 +284,25 @@ data:
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
-    {{- if and $.Values.etrip.use_redis (not $val.no_redis) }}
+      {{- if and $.Values.etrip.use_redis (not $val.no_redis) }}
     php_value[session.save_handler] = redis
     php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
-    {{- end }}
-    {{- with $val.phpValues -}}
-    {{- range $pkey, $pval := . }}
+      {{- end }}
+      {{- with $val.phpValues -}}{{- range $pkey, $pval := . }}
     php_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    {{- with $val.phpAdminValues -}}
-    {{- range $pkey, $pval := . }}
+      {{- end }}{{end}}
+      {{- with $val.phpAdminValues -}}{{- range $pkey, $pval := . }}
     php_admin_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    {{- end }}
-    {{- end }}
+      {{- end }}{{end}}
+      {{- if $.Values.etrip.monitoring.enabled }}
+    pm.status_listen = {{ add $val.port 500 }}
+    pm.status_path = /status
+      {{- end }}
+    {{- end }}{{- end }}
 
     {{- range $key, $instance := .Values.b2b }}
     {{ $val := mergeOverwrite (deepCopy $.Values.b2b_defaults.fpm) $instance.fpm }}
     {{- if not ($val.disabled) }}
-
     [fpm-b2b-{{$key}}]
     listen = {{ $val.port }}
     pm = {{ $val.mode | default "dynamic" }}
@@ -315,21 +313,22 @@ data:
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
-    {{- if and $.Values.etrip.use_redis (not $val.no_redis) }}
+      {{- if and $.Values.etrip.use_redis (not $val.no_redis) }}
     php_value[session.save_handler] = redis
     php_value[session.save_path] = "tcp://{{ $.Release.Name }}-redis:6379?auth=${REDIS_SECRET}"
-    {{- end }}
-    {{- with $val.phpValues -}}
-    {{- range $pkey, $pval := . }}
+      {{- end }}
+      {{- with $val.phpValues -}}{{- range $pkey, $pval := . }}
     php_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
-    {{- with $val.phpAdminValues -}}
-    {{- range $pkey, $pval := . }}
+      {{- end }}{{end}}
+      {{- with $val.phpAdminValues -}}{{- range $pkey, $pval := . }}
     php_admin_value[{{$pkey}}] = {{$pval}}
-    {{- end }}{{end}}
+      {{- end }}{{end}}
     env[B2B_CONFIG] = /config/b2b-{{$key}}.json
-    {{- end }}
-    {{- end }}
+      {{- if $.Values.etrip.monitoring.enabled }}
+    pm.status_listen = {{ add $val.port 500 }}
+    pm.status_path = /status
+      {{- end }}
+    {{- end }}{{- end }}
   {{- if .Values.frontends.enabled }}
   frontends-nginx.conf: |
     worker_processes 1;
