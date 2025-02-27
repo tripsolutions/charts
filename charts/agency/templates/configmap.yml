@@ -145,8 +145,6 @@ data:
             {{- end }}
     {{ end }}
 
-    {{ with .Values.agency.etraveli -}}
-
     {{ with .Values.agency.e_factura -}}
       {{ if .enabled -}}
     e_factura.auth_url = {{ .auth_url }}
