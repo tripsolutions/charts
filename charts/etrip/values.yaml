@@ -1146,9 +1146,9 @@ resources:
 
 affinity:
   # nodeAffinity, podAffinity, podAntiAffinity allowed
-  web: {}
-  redis: {}
-  worker: {}
+  web: null
+  redis: null
+  worker: null
 
 kvrocks:
   image:
