@@ -24,6 +24,8 @@ spec:
         {{- include "selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      affinity:
+        {{- toYaml .Values.affinity.redis | nindent 8 }}
       containers:
       - name: redis
         command:

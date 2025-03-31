@@ -1143,7 +1143,13 @@ resources:
     requests:
       cpu: 100m
       memory: 50Mi
-  
+
+affinity:
+  # nodeAffinity, podAffinity, podAntiAffinity allowed
+  web: {}
+  redis: {}
+  worker: {}
+
 kvrocks:
   image:
     pullPolicy: IfNotPresent

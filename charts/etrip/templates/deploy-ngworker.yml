@@ -30,6 +30,8 @@ spec:
     spec:
       securityContext:
         fsGroup: 33
+      affinity:
+        {{- toYaml .Values.affinity.worker | nindent 8 }}
       containers:
       - name: worker
         command: [ php, bin/worker.php ]
