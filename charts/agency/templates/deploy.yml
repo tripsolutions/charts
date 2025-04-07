@@ -190,7 +190,7 @@ spec:
           {{- end }}
 
           {{- if $efactura.enabled }}
-          from agency.tasks import e_factura_check_invoice
+          from agency.tasks import e_factura_check_invoice, e_factura_upload_issued_invoices
           efactura_interval = {{ $efactura.loopInterval | default 120 }}
 
           def efactura_repeat_run(sc):
@@ -198,8 +198,13 @@ spec:
               e_factura_check_invoice('/config/agency.ini#agency')
             except Exception as e:
               logging.exception(e)
+            try:
+              e_factura_upload_issued_invoices('/config/agency.ini#agency')
+            except Exception as e:
+              logging.exception(e)
+
             s.enter(efactura_interval, 1, efactura_repeat_run, (sc,))
-          
+
           s.enter(efactura_interval, 1, efactura_repeat_run, (s,))
           {{- end }}
           
