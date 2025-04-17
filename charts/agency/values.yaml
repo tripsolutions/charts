@@ -96,6 +96,9 @@ agency:
     url: https://api.travelify.io
     application_id: NULL
     private_key: NULL
+  anaf:
+    enabled: false
+    vat_search_url: https://webservicesp.anaf.ro/PlatitorTvaRest/api/v8/ws/tva
   tinymce_key: null
   eurolife:
     enabled: false
