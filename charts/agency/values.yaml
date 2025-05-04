@@ -99,7 +99,7 @@ agency:
   tinymce_key: null
   eurolife:
     enabled: false
-    url: https://testpartners.eurolife-asigurari.ro:5651/api
+    api_url: https://testpartners.eurolife-asigurari.ro:5651/api
     #username: username
     #password: password
     #api_key: apiKey
