@@ -58,9 +58,7 @@ spec:
           name: metrics
           protocol: TCP
         env:
-        - name: REDIS_URL
-          value: redis://localhost:6666
-        - name: REDIS_PASSWORD
+        - name: KVROCKS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: {{ .Release.Name }}-secrets
