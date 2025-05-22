@@ -48,6 +48,48 @@ spec:
           protocol: TCP
         resources:
           {{- toYaml .Values.resources.redis | nindent 10 }}
+      {{- /* monitoring sidecar */}}
+      {{- if .Values.kvrocks.monitoring.enabled }}
+      - name: redis-exporter
+        image: {{ .Values.kvrocks.monitoring.image.name }}:{{ .Values.kvrocks.monitoring.image.tag }}
+        imagePullPolicy: {{ .Values.kvrocks.monitoring.image.pullPolicy }}
+        ports:
+        - containerPort: 9121
+          name: metrics
+          protocol: TCP
+        env:
+        - name: REDIS_URL
+          value: redis://localhost:6666
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: session
+        resources:
+          {{- toYaml .Values.resources.redis_monitor | nindent 10 }}
+      {{- end }}
+---
+# podMonitor
+{{- if .Values.kvrocks.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Release.Name }}-redis-monitor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  jobLabel: app.kubernetes.io/instance
+  podTargetLabels:
+  - app.kubernetes.io/component
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

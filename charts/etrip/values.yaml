@@ -1129,6 +1129,13 @@ resources:
     requests:
       cpu: 100m
       memory: 100Mi
+  redis_monitor:
+    limits:
+      cpu: 200m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
   smtp:
     limits:
       cpu: "1"
@@ -1155,6 +1162,12 @@ kvrocks:
     pullPolicy: IfNotPresent
     name: apache/kvrocks
     tag: 2.11.1
+  monitoring:
+    enabled: false
+    image:
+      pullPolicy: IfNotPresent
+      name: kvrocks/kvrocks-exporter
+      tag: 1.0.8
   config:
     rocksdb.block_cache_size: 1024 # MB
     compaction-checker-cron: "22 * * * *" # every hour at minute 22
