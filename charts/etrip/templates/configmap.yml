@@ -142,6 +142,10 @@ data:
         if ($trusted != 0) {
           set $auth_realm off;
         }
+        # turn off authentication if the URL begins with /client_files
+        if ($request_uri ~* "^/client_files") {
+          set $auth_realm off;
+        }
         auth_basic $auth_realm;
         auth_basic_user_file /config/htpasswd;
         {{- end }}
