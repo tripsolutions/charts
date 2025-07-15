@@ -183,12 +183,12 @@ spec:
 
           {{- if $efactura.enabled }}
           scheduler.add_job(tasks.e_factura_check_invoice, id='e_factura_check_invoice', trigger='interval', seconds={{ $efactura.loopInterval | default 120 }})
-          scheduler.add_job(tasks.e_factura_upload_issued_invoices, id='e_factura_upload_issued_invoices', trigger='interval', seconds=efactura_interval)
+          scheduler.add_job(tasks.e_factura_upload_issued_invoices, id='e_factura_upload_issued_invoices', trigger='interval', seconds={{ $efactura.loopInterval | default 120 }})
           {{- end }}
 
           scheduler.add_job(WebhookInstance.process_webhooks, id='process_webhooks', trigger='interval', seconds=50)
 
-          scheduler.run()
+          scheduler.start()
       volumes:
       - name: config
         configMap:

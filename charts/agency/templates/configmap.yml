@@ -275,7 +275,7 @@ data:
     keys = generic
 
     [logger_root]
-    level = WARN
+    level = INFO
     handlers = console
 
     [logger_agency]
