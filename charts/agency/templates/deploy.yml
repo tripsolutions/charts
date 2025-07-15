@@ -159,7 +159,6 @@ spec:
       {{- end }}
       {{- $generali := .Values.agency.generali }}
       {{- $efactura := .Values.agency.e_factura }}
-      {{- if or $generali $efactura.enabled }}
       - name: loop
         {{- include "agency.pod" . | indent 8}}
         resources:
@@ -168,48 +167,28 @@ spec:
         args:
         - -c
         - |
-          import sched, time, logging
-          logging.basicConfig(level=logging.INFO)
-          s = sched.scheduler(time.time, time.sleep)
+          from apscheduler.schedulers.blocking import BlockingScheduler as Scheduler
+          from pyramid.paster import bootstrap, setup_logging
+          from agency import tasks
+          from agency.model.webhooks import WebhookInstance
+
+          config_file = '/config/agency.ini#agency'
+          bootstrap(config_file)
+          setup_logging(config_file)
+          scheduler = Scheduler()
 
           {{- if $generali }}
-          from agency.tasks import generali_check_status
-          generali_interval = {{ $generali.loopInterval | default 120 }}
-
-          def generali_repeat_run(sc):
-              try:
-                  logging.info(
-                    "Success" if
-                    generali_check_status('/config/agency.ini#agency')
-                    else "Failed")
-              except Exception as e:
-                  logging.exception(e)
-              s.enter(generali_interval, 1, generali_repeat_run, (sc,))
-
-          s.enter(generali_interval, 1, generali_repeat_run, (s,))
+          scheduler.add_job(tasks.generali_check_status, id='generali_check_status', trigger='interval', seconds={{ $generali.loopInterval | default 120 }})
           {{- end }}
 
           {{- if $efactura.enabled }}
-          from agency.tasks import e_factura_check_invoice, e_factura_upload_issued_invoices
-          efactura_interval = {{ $efactura.loopInterval | default 120 }}
-
-          def efactura_repeat_run(sc):
-            try:
-              e_factura_check_invoice('/config/agency.ini#agency')
-            except Exception as e:
-              logging.exception(e)
-            try:
-              e_factura_upload_issued_invoices('/config/agency.ini#agency')
-            except Exception as e:
-              logging.exception(e)
-
-            s.enter(efactura_interval, 1, efactura_repeat_run, (sc,))
-
-          s.enter(efactura_interval, 1, efactura_repeat_run, (s,))
+          scheduler.add_job(tasks.e_factura_check_invoice, id='e_factura_check_invoice', trigger='interval', seconds={{ $efactura.loopInterval | default 120 }})
+          scheduler.add_job(tasks.e_factura_upload_issued_invoices, id='e_factura_upload_issued_invoices', trigger='interval', seconds=efactura_interval)
           {{- end }}
-          
-          s.run()
-      {{- end }}
+
+          scheduler.add_job(WebhookInstance.process_webhooks, id='process_webhooks', trigger='interval', seconds=50)
+
+          scheduler.run()
       volumes:
       - name: config
         configMap:
