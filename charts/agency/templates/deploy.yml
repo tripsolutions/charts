@@ -161,6 +161,21 @@ spec:
       {{- $efactura := .Values.agency.e_factura }}
       - name: loop
         {{- include "agency.pod" . | indent 8}}
+        {{- with .Values.agency.companies }}
+        {{- if or .enabled $.Values.companies.enabled }}
+        - name: SHARED_SECRET
+          valueFrom:
+            secretKeyRef:
+              {{- if $.Values.companies.enabled }}
+              name: {{ include "companies.releaseName" $ }}-secret
+              {{- else if .shared_secret.source }}
+              name: {{ .shared_secret.source }}
+              {{- else }}
+              name: {{ include "agency.releaseName" $ }}-secret
+              {{- end }}
+              key: shared_secret
+        {{- end }}
+        {{- end }}
         resources:
           {{- .Values.resources.loop | default $.Values.resources.cron | toYaml | nindent 10 }}
         command: [ python3 ]
