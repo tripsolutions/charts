@@ -24,25 +24,17 @@ spec:
         {{- end }}
         resources: {{ toYaml .Values.web.resources | nindent 10 }}
         ports:
-        - containerPort: 80
+        - containerPort: 8080
           name: http
           protocol: TCP
         env:
-        - name: ENV_CONFIG
-          value: "true"
-        - name: ELOGGER_DIR
-          value: /tmp/elogger
-        - name: ELOGGER_DBHOST
-          value: {{ .Release.Name }}-db-rw
-        - name: ELOGGER_DBNAME
-          value: elogger
-        - name: ELOGGER_DBUSER
-          value: elogger
-        - name: ELOGGER_DBPASS
+        - name: DB_PASS
           valueFrom:
             secretKeyRef: 
               name: {{ .Release.Name }}-db-app
               key: password
-        - name: ELOGGER_TABLE
-          value: "none"
+        - name: DB_DSN
+          value: "host={{ .Release.Name }}-db-rw port=5432 dbname=elogger user=elogger sslmode=disable password=$(DB_PASS)"
+        - name: DB_DSN_RO
+          value: "host={{ .Release.Name }}-db-ro port=5432 dbname=elogger user=elogger sslmode=disable password=$(DB_PASS)"
 {{- end }}

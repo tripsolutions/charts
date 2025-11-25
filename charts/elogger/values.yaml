@@ -73,8 +73,8 @@ web:
   image:
     pullPolicy: IfNotPresent
     registry: eu.gcr.io/tripsol
-    name: elogger
-    tag: latest
+    name: elogger-ng
+    tag: main
   resources:
     limits:
       cpu: 100m
