@@ -36,5 +36,5 @@ spec:
         - name: DB_DSN
           value: "host={{ .Release.Name }}-db-rw port=5432 dbname=elogger user=elogger sslmode=disable password=$(DB_PASS)"
         - name: DB_DSN_RO
-          value: "host={{ .Release.Name }}-db-ro port=5432 dbname=elogger user=elogger sslmode=disable password=$(DB_PASS)"
+          value: "host={{ .Release.Name }}-db-r port=5432 dbname=elogger user=elogger sslmode=disable password=$(DB_PASS)"
 {{- end }}
