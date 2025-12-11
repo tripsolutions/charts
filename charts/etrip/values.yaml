@@ -673,7 +673,7 @@ elogger:
     dbname: elogger
 
     # password authentication
-    passwordSecret: elogger.elogger-cluster.credentials
+    passwordSecret: elogger-db-app
 
   image:
     registry: eu.gcr.io/tripsol
