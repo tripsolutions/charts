@@ -24,6 +24,15 @@ imagePullPolicy: {{ .pullPolicy }}
 {{- end -}}
 {{- end -}}
 
+{{- define "eloggerImage" }}
+{{- with .Values.elogger.image -}}
+image: {{ .registry -}} /
+    {{- .name -}} :
+    {{- .tag }}
+imagePullPolicy: {{ .pullPolicy }}
+{{- end -}}
+{{- end -}}
+
 {{- define "frontendsImage" -}}
 {{- with .Values.frontends.image -}}
 image: {{ .registry -}} /

@@ -51,8 +51,6 @@ spec:
         - mountPath: /config
           name: config
           subPath: etrip
-        - mountPath: /tmp/elogger
-          name: elogger
         - mountPath: /secrets
           name: secrets
           readOnly: true
@@ -107,8 +105,6 @@ spec:
             | trimPrefix (print $.Chart.Name "-"))
             | replace "-" "_" }}
         {{- end }}{{- end }}
-        - name: ETRIP_LOGDIR
-          value: /tmp/elogger
         - name: ETRIP_VERSION
           value: {{ .Values.version | quote }}
         {{- if .Values.smtpgate.enabled }}
@@ -121,49 +117,6 @@ spec:
           protocol: TCP
         resources:
           {{- toYaml $resources | nindent 10 }}
-      {{- with .Values.elogger }}
-      {{- if .enabled }}
-      - name: sendlogs
-        # run as non-root
-        securityContext:
-          runAsUser: 33
-          runAsGroup: 33
-        image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
-        imagePullPolicy: {{ .image.pullPolicy }}
-        env:
-        - name: ELOGGER_DIR
-          value: /tmp/elogger
-        {{- if not .db.certificate }}
-        - name: ELOGGER_DBPASS
-          valueFrom:
-            secretKeyRef: 
-              name: {{ .db.passwordSecret | default (printf "%s.%s.credentials" .db.username .db.host) }}
-              key: {{ .db.passwordKey | default "password" }}
-        {{- end }}
-        - name: ELOGGER_DSN
-          value: >-
-            user={{ .db.username }}
-            host={{ .db.host }}
-            dbname={{ .db.dbname }}
-            {{- if not .db.certificate }}
-            password=$(ELOGGER_DBPASS)
-            {{- end }}
-        - name: ELOGGER_TABLE
-          value: {{ .table | default ($.Release.Name
-            | trimPrefix (print $.Chart.Name "-")) 
-            | replace "-" "_" }}
-        - name: ELOGGER_INGRESS
-          value: "false"
-        volumeMounts:
-        - mountPath: /tmp/elogger
-          name: elogger
-        {{- if .db.certificate }}
-        - mountPath: /app/.postgresql
-          name: secrets
-          subPath: elogger-tls
-          readOnly: true
-        {{- end }}
-      {{- end }}{{ end }}
       volumes:
       - name: config
         configMap:
@@ -207,19 +160,4 @@ spec:
               - key: ca.crt
                 path: searchlogs-tls/root.crt
           {{- end }}{{ end}}
-          {{- with .Values.elogger }}
-          {{- if and .enabled .db.certificate }}
-          - secret:
-              name: {{ .db.certificate }}
-              items:
-              - key: tls.crt
-                path: elogger-tls/postgresql.crt
-              - key: tls.key
-                path: elogger-tls/postgresql.key
-                mode: 384
-              - key: ca.crt
-                path: elogger-tls/root.crt
-          {{- end }}{{ end }}
-      - name: elogger
-        emptyDir: {}
 {{- end }}

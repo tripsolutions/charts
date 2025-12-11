@@ -35,8 +35,6 @@ spec:
             - mountPath: /config
               name: config
               subPath: etrip
-            - mountPath: /tmp/elogger
-              name: elogger
             - mountPath: /secrets
               name: secrets
               readOnly: true
@@ -82,14 +80,23 @@ spec:
                 | trimPrefix (print $.global.Chart.Name "-")) 
                 | replace "-" "_" }}
             {{- end }}{{- end }}
+            - name: ETRIP_LOG_MODE
+              value: {{ .global.Values.elogger.enabled | ternary "elogger-ng" "null" }}
+            {{- if or .global.Values.etripng.enabled .global.Values.elogger.enabled }}
+            - name: REDIS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .global.Release.Name }}-secrets
+                  key: session
+            - name: REDIS_URL
+              value: redis://user:$(REDIS_SECRET)@{{ .global.Release.Name }}-redis:6379/
+            {{- end }}
             {{- if .cron.env }}
             {{- range .cron.env }}
             - name: {{ .key }}
               value: {{ .value }}
             {{- end }}
             {{- end }}
-            - name: ETRIP_LOGDIR
-              value: /tmp/elogger
             {{- if .global.Values.smtpgate.enabled }}
             - name: ETRIP_SMTP_HOST
               value: {{ .global.Release.Name }}-service
@@ -103,49 +110,6 @@ spec:
               - -c
               - |
                 {{- .cron.command | toString | nindent 16 }}
-                touch /tmp/elogger/elogger.done
-          {{- if and .global.Values.elogger.enabled (not .cron.nologs ) }}
-          {{- with .global.Values.elogger }}
-          - name: sendlogs
-            # run as non-root
-            securityContext:
-              runAsUser: 33
-              runAsGroup: 33
-            image: {{ .image.registry -}} / {{- .image.name -}} : {{- .image.tag | toString }}
-            imagePullPolicy: {{ .image.pullPolicy }}
-            env:
-            - name: ELOGGER_DIR
-              value: /tmp/elogger
-            {{- if not .db.certificate }}
-            - name: ELOGGER_DBPASS
-              valueFrom:
-                secretKeyRef: 
-                  name: {{ .db.passwordSecret | default (printf "%s.%s.credentials" .db.username .db.host) }}
-                  key: {{ .db.passwordKey | default "password" }}
-            {{- end }}
-            - name: ELOGGER_DSN
-              value: >-
-                user={{ .db.username }}
-                host={{ .db.host }}
-                dbname={{ .db.dbname }}
-                {{- if not .db.certificate }}
-                password=$(ELOGGER_DBPASS)
-                {{- end }}
-            - name: ELOGGER_TABLE
-              value: {{ .table | default ($.global.Release.Name
-                | trimPrefix (print $.global.Chart.Name "-"))
-                | replace "-" "_" }}
-            - name: ELOGGER_INGRESS
-              value: "false"
-            volumeMounts:
-            - mountPath: /tmp/elogger
-              name: elogger
-            {{- if .db.certificate }}
-            - mountPath: /app/.postgresql
-              name: secrets
-              subPath: elogger-tls
-            {{- end }}
-          {{- end }}{{ end }}
           volumes:
           - name: config
             configMap:
@@ -157,8 +121,6 @@ spec:
               - key: b2b-{{$b2bkey}}.json
                 path: etrip/b2b.json
               {{- end }}
-          - name: elogger
-            emptyDir: {}
           - name: secrets
             projected:
               sources:
@@ -184,19 +146,6 @@ spec:
                     mode: 416
                   - key: ca.crt
                     path: searchlogs-tls/root.crt
-              {{- end }}{{ end }}
-              {{- with .global.Values.elogger }}
-              {{- if and .enabled .db.certificate }}
-              - secret:
-                  name: {{ .db.certificate }}
-                  items:
-                  - key: tls.crt
-                    path: elogger-tls/postgresql.crt
-                  - key: tls.key
-                    path: elogger-tls/postgresql.key
-                    mode: 384
-                  - key: ca.crt
-                    path: elogger-tls/root.crt
               {{- end }}{{ end }}
 {{- end }}
 {{- range .Values.cron -}}

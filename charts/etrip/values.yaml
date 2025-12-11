@@ -2,6 +2,7 @@ replicas:
   web: 1
   db: 1
   worker: 1
+  elogger: 1
 
 version: 4.0.66
 
@@ -668,23 +669,16 @@ elogger:
   enabled: false
   table: null
   db:
-    host: elogger-cluster
-    username: elogger
+    host: elogger-db-rw
     dbname: elogger
-
-    # SSL authentication (preferred when set)
-    certificate: null
 
     # password authentication
     passwordSecret: elogger.elogger-cluster.credentials
 
   image:
     registry: eu.gcr.io/tripsol
-    name: elogger
-    # current version requires the changes introduced in build c94eb824
-    # but recommended minimum build is master-fad582bf (decreased timeout, 
-    # graceful exit)
-    tag: master-fad582bf
+    name: elogger-ng
+    tag: main
 
 smtpgate:
   enabled: false
@@ -1146,6 +1140,13 @@ resources:
   worker:
     limits:
       cpu: "2"
+      memory: 500Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  elogger:
+    limits:
+      cpu: "1"
       memory: 500Mi
     requests:
       cpu: 100m

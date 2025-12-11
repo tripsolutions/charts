@@ -1,0 +1,63 @@
+{{- if .Values.elogger.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-elogger
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: elogger
+spec:
+  replicas: {{ .Values.replicas.elogger }}
+  selector:
+    matchLabels:
+      {{- include "selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: elogger
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: elogger
+    spec:
+      securityContext:
+        fsGroup: 33
+      {{- with .Values.affinity.elogger }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: elogger
+        command: [ php, bin/collector.php ]
+        {{- include "eloggerImage" . | nindent 8 }}
+        env:
+        - name: REDIS_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-secrets
+              key: session
+        - name: REDIS_URL
+          value: redis://user:$(REDIS_SECRET)@{{ .Release.Name }}-redis:6379/
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.elogger.db.passwordSecret }}
+              key: password
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.elogger.db.userSecret }}
+              key: username
+        - name: DB_DSN
+          value: user=$(DB_USER) password=$(DB_PASSWORD) host={{ .Values.elogger.db.host }} dbname={{ .Values.elogger.db.dbname }}
+        {{- range $key, $value := .Values.elogger.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources.elogger | nindent 10 }}
+{{- end }}
