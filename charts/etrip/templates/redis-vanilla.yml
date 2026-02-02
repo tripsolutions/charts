@@ -1,4 +1,4 @@
-{{- if or .Values.etrip.use_redis .Values.etripng.enabled -}}
+{{- if and (or .Values.etrip.use_redis .Values.etripng.enabled) (eq .Values.etrip.redis_flavour "vanilla") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
