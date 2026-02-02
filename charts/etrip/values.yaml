@@ -1171,9 +1171,8 @@ kvrocks:
       tag: 1.0.8
   config:
     rocksdb.block_cache_size: 1024 # MB
-    compaction-checker-cron: "22 * * * *" # every hour at minute 22
-    dbsize-scan-cron: "*/15 * * * *" # every 15 minutes
-    max-backups-to-keep: 0 # 0 means no backup, 1 means keep only the latest backup (no other values allowed)
+    compaction-checker-cron: "*/30 * * * *" # twice an hour
+    max-backup-to-keep: 0 # 0 means no backup, 1 means keep only the latest backup (no other values allowed)
 etripng:
   worker:
     env:
