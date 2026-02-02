@@ -57,7 +57,7 @@ spec:
         - containerPort: 9121
           name: metrics
           protocol: TCP
-        - env:
+        env:
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
