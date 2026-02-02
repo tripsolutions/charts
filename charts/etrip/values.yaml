@@ -36,6 +36,7 @@ etrip:
     name: etrip
     tag: null
   use_redis: true
+  redis_flavour: kvrocks
   phpValues: &phpValues
     session.gc_maxlifetime: 14400
   monitoring:
@@ -1173,6 +1174,19 @@ kvrocks:
     rocksdb.block_cache_size: 1024 # MB
     compaction-checker-cron: "*/30 * * * *" # twice an hour
     max-backup-to-keep: 0 # 0 means no backup, 1 means keep only the latest backup (no other values allowed)
+
+redis:
+  image:
+    pullPolicy: IfNotPresent
+    name: redis
+    tag: 8.4.0
+  monitoring:
+    enabled: false
+    image:
+      pullPolicy: IfNotPresent
+      name: bitnami/redis-exporter
+      tag: latest
+  config: {}
 etripng:
   worker:
     env:
