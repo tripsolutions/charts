@@ -63,10 +63,6 @@ spec:
             secretKeyRef:
               name: {{ .Release.Name }}-secrets
               key: session
-        command:
-        - /bin/sh
-        - -ca
-        - /redis_exporter --redis.addr=localhost:6379 --redis.password=$REDIS_PASSWORD
         resources:
           {{- toYaml .Values.resources.redis_monitor | nindent 10 }}
       {{- end }}
