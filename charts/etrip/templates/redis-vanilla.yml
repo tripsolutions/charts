@@ -1,4 +1,22 @@
 {{- if and (or .Values.etrip.use_redis .Values.etripng.enabled) (eq .Values.etrip.redis_flavour "vanilla") -}}
+{{/* The config file, if required */}}
+{{- if .Values.redis.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-redis-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+data:
+  redis.conf: |-
+    {{- range $key, $value := .Values.redis.config }}
+    {{ $key }} {{ $value }}
+    {{- end }}
+---
+{{- end }}
+{{/* The deployment */}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,7 +51,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - redis-server --bind 0.0.0.0 --requirepass $REDISCLI_AUTH {{ range $key, $value := .Values.redis.config }}--{{ $key }} {{ $value | quote }} {{ end }}
+        - redis-server --bind 0.0.0.0 --requirepass $REDISCLI_AUTH {{ if .Values.redis.config }}/etc/redis/redis.conf{{ end }}
         image: {{ .Values.redis.image.name }}:{{ .Values.redis.image.tag }}
         imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
         env:
@@ -48,6 +66,13 @@ spec:
           protocol: TCP
         resources:
           {{- toYaml .Values.resources.redis | nindent 10 }}
+        # we mount the config file
+        {{- if .Values.redis.config }}
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis
+          readOnly: true
+        {{- end }}
       {{- /* monitoring sidecar */}}
       {{- if .Values.redis.monitoring.enabled }}
       - name: redis-exporter
@@ -66,8 +91,14 @@ spec:
         resources:
           {{- toYaml .Values.resources.redis_monitor | nindent 10 }}
       {{- end }}
+      {{- if .Values.redis.config }}
+      volumes:
+      - name: redis-config
+        configMap:
+          name: {{ .Release.Name }}-redis-config
+      {{- end }}
 ---
-# podMonitor
+{{/* The PodMonitor for Redis monitoring */}}
 {{- if .Values.redis.monitoring.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -89,6 +120,7 @@ spec:
       app.kubernetes.io/component: redis
 {{- end }}
 ---
+{{/* The Service for Redis */}}
 apiVersion: v1
 kind: Service
 metadata:
