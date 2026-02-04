@@ -51,7 +51,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - redis-server --bind 0.0.0.0 {{ if .Values.redis.config }}/etc/redis/redis.conf{{ end }} --requirepass $REDISCLI_AUTH 
+        - redis-server {{ if .Values.redis.config }}/etc/redis/redis.conf{{ end }} --bind 0.0.0.0 --requirepass $REDISCLI_AUTH
         image: {{ .Values.redis.image.name }}:{{ .Values.redis.image.tag }}
         imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
         env:
