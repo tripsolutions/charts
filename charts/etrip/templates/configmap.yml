@@ -285,6 +285,7 @@ data:
     pm.start_servers = {{ $val.start }}
     pm.min_spare_servers = {{ $val.low }}
     pm.max_spare_servers = {{ $val.high }}
+    pm.max_requests = {{ $val.max_requests | default 0 }}
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
@@ -314,6 +315,7 @@ data:
     pm.start_servers = {{ $val.start }}
     pm.min_spare_servers = {{ $val.low }}
     pm.max_spare_servers = {{ $val.high }}
+    pm.max_requests = {{ $val.max_requests | default 0 }}
     ping.path = /ping
     request_terminate_timeout = 300
     clear_env = no
