@@ -1,5 +1,4 @@
 {{- $db := .Values.db -}}
-{{- if or (eq $db.provider "cnpg") (eq $db.bootstrap.mode "transition")  -}}
 {{- $releaseName := include "agency.releaseName" . -}}
 {{- $labels := include "agency.labels" . -}}
 {{- if $db.generateIssuer }}
@@ -146,27 +145,10 @@ kind: Cluster
 metadata:
   name: {{ $releaseName }}-db
   namespace: {{ .Release.Namespace }}
-  {{- /* Fencing mode */}}
-  {{- if and (eq $db.bootstrap.mode "transition") (eq $db.bootstrap.transitionPhase "standby_fence") }}
-  annotations:
-    cnpg.io/fencedInstances: '["*"]'
-  {{- end }}
   labels:
     {{- $labels | nindent 4 }}
 spec:
-  {{- /*
-    CNPG bug: while transitioning, the multitude of reconciliation errors caused
-    by zalando incompatibilities before cleanup scripts get applied confuse the
-    CNPG operator and cause the cluster to get stuck in an unrecoverable state
-    as far as the operator can see. This is recoverable only if no other 
-    instances are spawned while the first one gets cleaned up. After transition
-    phase is complete (transitionPhase set to full or mode switched away from 
-    "transition") we can allow more than one instance to be spawned. */}}
-  {{- if and (eq $db.bootstrap.mode "transition") $db.bootstrap.transitionPhase }}
-  instances: 1
-  {{- else }}
   instances: {{ .Values.replicas.db }}
-  {{- end }}
   imageName: {{ $db.image.registry -}} 
             / {{- $db.image.name -}} 
             : {{- $db.image.tag }}
@@ -195,7 +177,7 @@ spec:
   {{- 
     $templateStr := tpl $db.template (
       dict "Release" .Release "Values" .Values "Chart" .Chart "db" $db
-          "Template" .Template
+          "Template" .Template "releaseName" $releaseName
     )
   }}
   {{- $templateDict := fromYaml $templateStr -}}
@@ -205,10 +187,8 @@ spec:
   {{- with $db.affinity }}
   affinity: {{ toYaml . | nindent 4 }}
   {{- end }}
-  monitoring:
-    enablePodMonitor: {{ $db.monitoring }}
 {{- with $db.backup }}
-{{- if and .s3.enabled .schedule }}
+{{- if and .enabled .schedule }}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -222,5 +202,25 @@ spec:
     name: {{ $releaseName }}-db
   schedule: {{ .schedule | quote }}
   backupOwnerReference: self
-{{- end }}{{ end }}{{/* s3 enabled, schedule, backup */}}
-{{- end }}
+  method: plugin
+  pluginConfiguration:
+    name: {{ .plugin.name }}
+    parameters: {{ .plugin.parameters | toYaml | nindent 6 }}
+{{ end }}{{/* enabled, schedule */}}
+{{- end }}{{/* with backup */}}
+{{- if $db.monitoring }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ $releaseName }}-db
+  namespace: {{ .Release.Namespace }}
+  labels: {{- $labels | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ $releaseName }}-db
+      cnpg.io/podRole: instance
+{{- end }}{{/* monitoring */}}
