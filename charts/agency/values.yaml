@@ -336,7 +336,7 @@ db:
     ## creates a standby cluster using the same source as the clone or recovery
 
   backup:
-    enabled: true
+    enabled: false
     schedule: null # set to cron spec string to enable scheduled backups
     target: prefer-standby
     plugin:
