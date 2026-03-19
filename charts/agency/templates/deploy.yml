@@ -27,14 +27,10 @@ spec:
     spec:
       securityContext:
         fsGroup: 33
-      {{- if or
-        (eq .Values.db.provider "zalando")
-        (ne .Values.db.bootstrap.mode "transition") }}
       initContainers:
       - name: initdb
         {{- include "agency.pod" . | indent 8 }}
         command: [ initialize_agency_db, $(CONFIG_PATH)#agency ]
-      {{- end }}
       containers:
       - name: api
         {{- include "agency.pod" . | indent 8}}
@@ -211,9 +207,7 @@ spec:
           items:
           - key: agency.ini
             path: app/agency.ini
-      {{- if eq .Values.db.provider "cnpg" }}
       - name: ssl-cert
         secret:
           secretName: {{ include "agency.releaseName" . }}-db-app-tls
           defaultMode: 416
-      {{- end }}

@@ -80,7 +80,6 @@ volumeMounts:
 - mountPath: /config
   name: config
   subPath: app
-{{- if eq .Values.db.provider "cnpg" }}
 - mountPath: /var/www/.postgresql/postgresql.crt
   name: ssl-cert
   subPath: tls.crt
@@ -93,15 +92,7 @@ volumeMounts:
   name: ssl-cert
   subPath: ca.crt
   readOnly: true
-{{- end }}
 env:
-{{- if eq .Values.db.provider "zalando" }}
-- name: DB_PASSWORD
-  valueFrom:
-    secretKeyRef: 
-      name: agency.{{ include "agency.clusterName" . }}.credentials
-      key: password
-{{- end }}
 - name: CONFIG_PATH
   value: /config/agency.ini
 {{- end }}

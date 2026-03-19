@@ -43,10 +43,8 @@ spec:
               items:
               - key: agency.ini
                 path: app/agency.ini
-          {{- if eq .Values.db.provider "cnpg" }}
           - name: ssl-cert
             secret:
               secretName: {{ include "agency.releaseName" . }}-db-app-tls
               defaultMode: 416
-          {{- end }}
 {{- end }}
