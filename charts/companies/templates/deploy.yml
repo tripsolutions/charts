@@ -27,14 +27,10 @@ spec:
     spec:
       securityContext:
         fsGroup: 65534
-      {{- if or 
-        (eq .Values.db.provider "zalando")
-        (ne .Values.db.bootstrap.mode "transition" ) }}
       initContainers:
       - name: initdb
         {{- include "companies.pod" . | indent 8 }}
         command: [ alembic, -c, /config/config.ini, upgrade, head ]
-      {{- end }}
       containers:
       - name: api
         {{- include "companies.pod" . | indent 8 }}
@@ -61,12 +57,10 @@ spec:
           items:
           - key: config.ini
             path: app/config.ini
-      {{- if eq .Values.db.provider "cnpg" }}
       - name: ssl-cert
         secret:
           secretName: {{ include "companies.releaseName" . }}-db-app-tls
           defaultMode: 416 # octal 640
-      {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -78,7 +78,6 @@ volumeMounts:
 - mountPath: /config
   name: config
   subPath: app
-{{- if eq .Values.db.provider "cnpg" }}
 - mountPath: /.postgresql/postgresql.crt
   name: ssl-cert
   subPath: tls.crt
@@ -91,15 +90,12 @@ volumeMounts:
   name: ssl-cert
   subPath: ca.crt
   readOnly: true
-{{- end }}
 env:
 - name: CONFIG_PATH
   value: /config/config.ini
-{{- if eq .Values.db.provider "zalando" }}
 - name: PG_PASS
   valueFrom:
     secretKeyRef: 
         name: companies.{{ include "companies.clusterName" . }}.credentials
         key: password
-{{- end }}
 {{- end }}
