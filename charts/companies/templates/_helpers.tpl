@@ -93,9 +93,4 @@ volumeMounts:
 env:
 - name: CONFIG_PATH
   value: /config/config.ini
-- name: PG_PASS
-  valueFrom:
-    secretKeyRef: 
-        name: companies.{{ include "companies.clusterName" . }}.credentials
-        key: password
 {{- end }}
