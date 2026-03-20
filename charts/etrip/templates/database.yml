@@ -1,4 +1,6 @@
-{{- $db := mergeOverwrite .Values.db ( .Values.db.operator_install | default dict ) -}}
+{{- $db := .Values.db -}}
+{{- $releaseName := .Release.Name -}}
+{{- $labels := include "labels" . -}}
 {{- if $db.generateIssuer }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -6,16 +8,16 @@ metadata:
   name: {{ .Release.Name }}-db-ca
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   isCA: true
-  commonName: {{ .Release.Name }}-db
+  commonName: {{ $releaseName }}-db
   dnsNames:
     {{- range $mode := (list "rw" "r" "ro") }}
-    - {{ $.Release.Name }}-db-{{ $mode }}
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc.cluster.local
+    - {{ $releaseName }}-db-{{ $mode }}
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc.cluster.local
     {{- end }}
   issuerRef: {{ toYaml $db.caIssuer | nindent 4 }}
   privateKey:
@@ -32,7 +34,7 @@ metadata:
   name: {{ .Release.Name }}-db-issuer
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   ca:
     secretName: {{ .Release.Name }}-db-ca
@@ -47,16 +49,16 @@ metadata:
   name: {{ .Release.Name }}-db-cert
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   ca: {{ toYaml $db.caIssuer | nindent 4 }}
   commonName: {{ .Release.Name }}-db
   dnsNames:
     {{- range $mode := (list "rw" "r" "ro") }}
-    - {{ $.Release.Name }}-db-{{ $mode }}
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc
-    - {{ $.Release.Name }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc.cluster.local
+    - {{ $releaseName }}-db-{{ $mode }}
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc
+    - {{ $releaseName }}-db-{{ $mode }}.{{ $.Release.Namespace }}.svc.cluster.local
     {{- end }}
   issuerRef: {{ toYaml $db.caIssuer | nindent 4 }}
   privateKey:
@@ -121,7 +123,7 @@ metadata:
   name: {{ .Release.Name }}-db-app
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   usages: [ client auth ]
   commonName: etrip
@@ -144,7 +146,7 @@ metadata:
   name: {{ .Release.Name }}-db
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   instances: {{ .Values.replicas.db }}
   imageName: {{ $db.image.registry -}} 
@@ -177,7 +179,7 @@ spec:
   {{- 
     $templateStr := tpl $db.template (
       dict "Release" .Release "Values" .Values "Chart" .Chart "db" $db
-          "Template" .Template
+          "Template" .Template "releaseName" $releaseName
     )
   }}
   {{- $templateDict := fromYaml $templateStr -}}
@@ -187,21 +189,39 @@ spec:
   {{- with $db.affinity }}
   affinity: {{ toYaml . | nindent 4 }}
   {{- end }}
-  monitoring:
-    enablePodMonitor: {{ $db.exporter.enabled }}
 {{- with $db.backup }}
-{{- if and .s3.enabled .schedule }}
+{{- if and .enabled .schedule }}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: {{ $.Release.Name }}-db-scheduled-backup
+  name: {{ $releaseName }}-db-scheduled-backup
   namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "labels" $ | nindent 4 }}
+    {{- $labels | nindent 4 }}
 spec:
   cluster:
-    name: {{ $.Release.Name }}-db
+    name: {{ $releaseName }}-db
   schedule: {{ .schedule | quote }}
   backupOwnerReference: self
-{{- end }}{{ end }}{{/* s3 enabled, schedule, backup */}}
+  method: plugin
+  pluginConfiguration:
+    name: {{ .plugin.name }}
+    parameters: {{ toYaml .plugin.parameters | nindent 6 }}
+{{- end }}{{ end }}{{/* enabled && schedule, with backup */}}
+{{- if $db.monitoring }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ $releaseName }}-db
+  namespace: {{ .Release.Namespace }}
+  labels: {{- $labels | nindent 4 }}
+spec:
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ $releaseName }}-db
+      cnpg.io/podRole: instance
+{{- end }}{{/* monitoring */}}
