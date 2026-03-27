@@ -902,7 +902,7 @@ db:
       {{- else if eq .db.bootstrap.mode "clone" }}
       pg_basebackup:
         database: etrip
-        source: bootstrap
+        source: fromCluster
       {{- end }}{{/* bootstrap.mode */}}
 
     {{- if and (eq .db.bootstrap.mode "recovery") (eq .db.bootstrap.recovery.source "plugin") }}
