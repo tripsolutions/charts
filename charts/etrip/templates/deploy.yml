@@ -109,7 +109,7 @@ spec:
             sslkey=/secrets/app-tls/postgresql.key
             sslrootcert=/secrets/app-tls/root.crt
         - name: ETRIP_LOG_MODE
-          value: {{ .Values.elogger.enabled | ternary "elogger-ng" "null" }}
+          value: {{ .Values.elogger.enabled | ternary "elogger-ng" "null" | quote }}
         {{- if or .Values.etrip.use_redis .Values.etripng.enabled .Values.elogger.enabled }}
         - name: REDIS_SECRET
           valueFrom:

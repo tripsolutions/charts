@@ -81,7 +81,7 @@ spec:
                 | replace "-" "_" }}
             {{- end }}{{- end }}
             - name: ETRIP_LOG_MODE
-              value: {{ .global.Values.elogger.enabled | ternary "elogger-ng" "null" }}
+              value: {{ .global.Values.elogger.enabled | ternary "elogger-ng" "null" | quote }}
             {{- if or .global.Values.etripng.enabled .global.Values.elogger.enabled }}
             - name: REDIS_SECRET
               valueFrom:
