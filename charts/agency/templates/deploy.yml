@@ -38,7 +38,7 @@ spec:
             atol, bookings, cruise, etrip, financials, flight, 
             hotel, other, partners, settings, tasks, travelify)
           from pyramid.paster import setup_logging
-          setup_logging('local2.ini')
+          setup_logging('/config/agency.ini')
           import agency as a
           from agency.scripts import initializedb as i
           a.setup_engine_from_inifile('/config/agency.ini#agency')
