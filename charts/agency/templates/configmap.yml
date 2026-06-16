@@ -99,6 +99,13 @@ data:
             {{- end }}
     {{ end }}
 
+    {{ with .Values.agency.groupama -}}
+    groupama.quote_url = {{ .quote_url | default "https://wstht.groupama.ro/new_th/ws/cotatie.php" }}
+    groupama.offer_url = {{ .offer_url | default "https://wstht.groupama.ro/new_th/ws/oferta.php" }}
+    groupama.convert_url = {{ .convert_url | default "https://wstht.groupama.ro/new_th/ws/convert_oferta.php" }}
+    groupama.print_url = {{ .print_url | default "https://wsprinttest.groupama.ro/ws/ws_ppt/index.php" }}
+    {{- end }}
+
     {{ with .Values.agency.pnrConverter -}}
     pnr_converter.url = https://api.pnrconverter.com/api
     pnr_converter.public_key = {{ .public_key }}
