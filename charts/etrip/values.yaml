@@ -357,12 +357,13 @@ etrip:
             ##NOTES##
       tour:
         item:
-          short_description: "##TOUR_NAME##, ##START_DATE##, ##START_LOCATION## (##PICKUP_DETAILS##)
-            - ##END_DATE##, ##END_LOCATION## (##DROPOFF_DETAILS##)"
+          short_description: "##TOUR_NAME## (##START_DATE## - ##END_DATE##) / ##DEPARTURE_POINT##"
           description: |-
             Tour: ##TOUR_NAME##
-            Pick Up: ##START_DATE_AND_TIME## ##START_LOCATION## (##PICKUP_DETAILS##)
-            Drop Off: ##END_DATE_AND_TIME## ##END_LOCATION## (##DROPOFF_DETAILS##)
+            Departure: ##START_DATE## ##DEPARTURE_POINT##
+            Destination: ##DESTINATION##
+            Return: ##END_DATE## ##DEPARTURE_POINT##
+            Supplements: ##SUPPLEMENTS##
             ##NOTES##
       transfer:
         item:
