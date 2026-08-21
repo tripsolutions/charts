@@ -20,8 +20,8 @@ spec:
   {{- end }}
   postgresql:
     parameters: {{- toYaml .Values.db.parameters | nindent 6 }}
-    shared_preload_libraries:
-    - timescaledb
+    shared_preload_libraries: {{- toYaml .Values.db.shared_preload_libraries | nindent 6 }}
+    extensions: {{- toYaml .Values.db.extensions | nindent 6 }}
   instances: {{ .Values.db.replicas }}
   logLevel: {{ .Values.db.logLevel }}
   resources: {{ toYaml .Values.db.resources | nindent 4 }}

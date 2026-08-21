@@ -11,11 +11,17 @@ db:
   replicas: 1
   image:
     pullPolicy: IfNotPresent
-    registry: ghcr.io/tripsolutions
+    registry: ghcr.io/cloudnative-pg
     name: postgresql
-    tag: 16.3-cron-timescaledb-2.15.1
+    tag: 18.4-standard-trixie
   parameters:
     timescaledb.license: timescale
+  shared_preload_libraries:
+  - timescaledb
+  extensions:
+  - name: timescaledb
+    image:
+      reference: ghcr.io/tripsolutions/postgresql-ext-timescaledb:18-2.29.2
   storage:
     size: 1Gi
     storageClass: default
