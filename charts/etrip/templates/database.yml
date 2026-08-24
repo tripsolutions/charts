@@ -168,6 +168,9 @@ spec:
     {{- end }}
     replicationTLSSecret: {{ .Release.Name }}-db-replica-tls
   postgresql:
+    {{- if $db.extensions }}
+    extensions: {{ toYaml $db.extensions | nindent 6 }}
+    {{- end }}
     pg_hba:
     - hostssl etrip all all cert
     parameters: {{ toYaml $db.dbParameters | nindent 6}}

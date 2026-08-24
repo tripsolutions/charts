@@ -856,10 +856,15 @@ db:
 
   image:
     pullPolicy: IfNotPresent
-    registry: ghcr.io/tripsolutions
+    registry: ghcr.io/cloudnative-pg
     name: postgresql
-    tag: 18.3-standard-trixie-cron
+    tag: 18.6-standard-trixie
   
+  extensions:
+  - name: pg_cron
+    image:
+      reference: ghcr.io/tripsolutions/postgresql-ext-cron:18-1.6.7
+
   generateIssuer: true
     # true: generate a CA cert using provided caIssuer
     # false: use provided caIssuer as CA; as such, must not be a self-signing issuer
