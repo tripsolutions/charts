@@ -104,6 +104,7 @@ data:
     groupama.offer_url = {{ .offer_url | default "https://wstht.groupama.ro/new_th/ws/oferta.php" }}
     groupama.convert_url = {{ .convert_url | default "https://wstht.groupama.ro/new_th/ws/convert_oferta.php" }}
     groupama.print_url = {{ .print_url | default "https://wsprinttest.groupama.ro/ws/ws_ppt/index.php" }}
+    groupama.platform_code = {{ .platform_code }}
     {{- end }}
 
     {{ with .Values.agency.pnrConverter -}}

@@ -64,6 +64,7 @@ agency:
     offer_url: https://wstht.groupama.ro/new_th/ws/oferta.php
     convert_url: https://wstht.groupama.ro/new_th/ws/convert_oferta.php
     print_url: https://wsprinttest.groupama.ro/ws/ws_ppt/index.php
+    platform_code: ETR
   paysafe:
     env: test
     url: false # specify full URL to override env
