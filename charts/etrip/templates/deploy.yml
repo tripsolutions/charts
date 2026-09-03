@@ -38,13 +38,28 @@ spec:
       {{- if not $db.bootstrap.standby }}
       - name: migrations
         {{- include "etripImage" . | nindent 8 }}
-        command: [ "/var/www/localhost/migrate" ]
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -eo pipefail
+          # wait for database
+          until pg_isready -h {{ .Release.Name }}-db-rw -U etrip; do sleep 1; done
+
+          echo "Database is ready"
+          psql "$ETRIP_DSN" --single-transaction --set ON_ERROR_STOP=on --file /bootstrap/bootstrap.sql
+          echo "Database bootstrap is ready"
+          /var/www/localhost/migrate
         volumeMounts:
         - mountPath: /config
           name: config
           subPath: etrip
         - mountPath: /secrets
           name: secrets
+          readOnly: true
+        - mountPath: /bootstrap
+          name: bootstrap
+          subPath: bootstrap
           readOnly: true
         env:
         - name: ETRIP_CONFIG
@@ -308,6 +323,10 @@ spec:
               - key: ca.crt
                 path: searchlogs-tls/root.crt
           {{- end }}{{ end}}
+      - name: bootstrap
+        image:
+          pullPolicy: {{ .Values.etrip.bootstrapDBImage.pullPolicy }}
+          reference: {{ .Values.etrip.bootstrapDBImage.reference }}
       {{- if .Values.frontends.enabled}}
       - name: frontends
         emptyDir: {}

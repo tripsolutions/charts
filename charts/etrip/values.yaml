@@ -35,6 +35,9 @@ etrip:
     registry: eu.gcr.io/tripsol  
     name: etrip
     tag: null
+  bootstrapDBImage:
+    pullPolicy: IfNotPresent
+    reference: eu.gcr.io/tripsol/etrip-dump:v1
   use_redis: true
   redis_flavour: kvrocks
   phpValues: &phpValues
@@ -891,6 +894,8 @@ db:
         - CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
         - CREATE EXTENSION IF NOT EXISTS "pgcrypto"
         - CREATE EXTENSION IF NOT EXISTS "earthdistance" CASCADE
+        - CREATE EXTENSION IF NOT EXISTS "pg_cron" CASCADE
+        - GRANT USAGE ON SCHEMA cron TO etrip
       {{- else if eq .db.bootstrap.mode "recovery" }}
       recovery:
         database: etrip
