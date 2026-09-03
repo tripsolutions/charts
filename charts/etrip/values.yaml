@@ -4,7 +4,7 @@ replicas:
   worker: 1
   elogger: 1
 
-version: 4.0.66
+version: 7.4.39
 
 ingress:
   enabled: true
