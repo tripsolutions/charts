@@ -11,7 +11,7 @@ ingress:
   tls: false
   annotations: {}
 #    cert-manager.io/cluster-issuer: letsencrypt-live
-#    external-dns.alpha.kubernetes.io/hostname: agency-website-ro.dyn.tripsolutions.co.uk
+#    external-dns.kubernetes.io/hostname: agency-website-ro.dyn.tripsolutions.co.uk
 #    nginx.ingress.kubernetes.io/proxy-body-size: 20m
 
 image:

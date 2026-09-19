@@ -28,7 +28,7 @@ ingress:
 #   tls: true
 #   annotations: 
 #     cert-manager.io/cluster-issuer: letsencrypt-staging
-#     external-dns.alpha.kubernetes.io/hostname: agency-ro-staging.dyn.tripsolutions.co.uk
+#     external-dns.kubernetes.io/hostname: agency-ro-staging.dyn.tripsolutions.co.uk
 
 agency:
   env: staging

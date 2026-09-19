@@ -27,7 +27,7 @@ ingress:
 #   tls: true
 #   annotations: 
 #     cert-manager.io/cluster-issuer: letsencrypt-staging
-#     external-dns.alpha.kubernetes.io/hostname: etrip-install-name.dyn.tripsolutions.co.uk
+#     external-dns.kubernetes.io/hostname: etrip-install-name.dyn.tripsolutions.co.uk
 
 etrip:
   image:
