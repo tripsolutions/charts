@@ -170,10 +170,10 @@ db:
       {{ .db.bootstrap.clone.cluster | toYaml | nindent 2 }}
       {{- end }}{{/* clone.source == cluster */}}
     {{- end }}{{/* bootstrap.mode == clone */}}
-    {{ if .db.bootstrap.standby }}
+    {{ if and .db.bootstrap.standby (or (and (eq .db.bootstrap.mode "recovery") (eq .db.bootstrap.recovery.source "plugin")) (eq .db.bootstrap.mode "clone")) }}
     replica:
       enabled: true
-      source: fromCluster
+      source: {{ if eq .db.bootstrap.mode "recovery" }}fromPlugin{{ else if eq .db.bootstrap.mode "clone" }}fromCluster{{ end }}
     {{- end }}{{/* bootstrap.standby */}}
 
     {{- with .db.backup }}{{- if .enabled }}
