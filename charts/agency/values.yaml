@@ -50,6 +50,7 @@ agency:
       schedule: 0 */3 * * *
     e_factura:
       schedule: 0 1 * * *
+    webhooks: true
   mondial:
     env: test # test or live
     # values below would be the defaults if env is set to live

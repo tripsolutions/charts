@@ -197,7 +197,9 @@ spec:
           scheduler.add_job(tasks.e_factura_upload_issued_invoices, id='e_factura_upload_issued_invoices', trigger='interval', seconds={{ $efactura.loopInterval | default 120 }})
           {{- end }}
 
+          {{- if .Values.agency.cron.webhooks }}
           scheduler.add_job(WebhookInstance.process_webhooks, id='process_webhooks', trigger='interval', seconds=50)
+          {{- end }}
 
           scheduler.start()
       volumes:
