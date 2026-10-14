@@ -15,6 +15,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- with .Values.etripng.secondary_etrip.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
   rules:
   {{- with .Values.etripng.secondary_etrip.ingress }}
   {{- range .hostnames }}
