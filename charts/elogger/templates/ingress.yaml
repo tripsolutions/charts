@@ -40,6 +40,9 @@ metadata:
   annotations: {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
   rules:
   {{- range .Values.ingress.hostnames }}
   - host: {{ . | quote }}
