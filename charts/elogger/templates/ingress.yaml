@@ -51,7 +51,7 @@ metadata:
       {{- $authAnnotations := dict "nginx.ingress.kubernetes.io/auth-type" "basic" "nginx.ingress.kubernetes.io/auth-secret" (printf "%s-auth" .Release.Name) "nginx.ingress.kubernetes.io/auth-realm" "Authentication Required" }}
       {{- $annotations = merge $authAnnotations $annotations }}
     {{- else }}{{/* not nginx, add traefik middleware */}}
-      {{- $authAnnotations := dict "traefik.ingress.kubernetes.io/middlewares" (printf "%s-%s-auth@kubernetescrd" .Release.Namespace .Release.Name) }}
+      {{- $authAnnotations := dict "traefik.ingress.kubernetes.io/router.middlewares" (printf "%s-%s-auth@kubernetescrd" .Release.Namespace .Release.Name) }}
       {{- $annotations = merge $authAnnotations $annotations }}
     {{- end }}{{/* if not eq .Values.ingress.className "traefik" */}}
   {{- end }}{{/* if .Values.ingress.auth.enabled */}}
