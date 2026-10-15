@@ -51,7 +51,14 @@ metadata:
       {{- $authAnnotations := dict "nginx.ingress.kubernetes.io/auth-type" "basic" "nginx.ingress.kubernetes.io/auth-secret" (printf "%s-auth" .Release.Name) "nginx.ingress.kubernetes.io/auth-realm" "Authentication Required" }}
       {{- $annotations = merge $authAnnotations $annotations }}
     {{- else }}{{/* not nginx, add traefik middleware */}}
-      {{- $authAnnotations := dict "traefik.ingress.kubernetes.io/router.middlewares" (printf "%s-%s-auth@kubernetescrd" .Release.Namespace .Release.Name) }}
+      {{/* but don't overwrite existing middlewares annotation */}}
+      {{- $authAnnotations := dict }}
+      {{- if hasKey $annotations "traefik.ingress.kubernetes.io/router.middlewares" }}
+        {{- $existingMiddlewares := index $annotations "traefik.ingress.kubernetes.io/router.middlewares" }}
+        {{- $authAnnotations = dict "traefik.ingress.kubernetes.io/router.middlewares" (printf "%s, %s-%s-auth@kubernetescrd" $existingMiddlewares .Release.Namespace .Release.Name) }}
+      {{- else }}
+        {{- $authAnnotations = dict "traefik.ingress.kubernetes.io/router.middlewares" (printf "%s-%s-auth@kubernetescrd" .Release.Namespace .Release.Name) }}
+      {{- end }}{{/* if hasKey $annotations "traefik.ingress.kubernetes.io/router.middlewares" */}}
       {{- $annotations = merge $authAnnotations $annotations }}
     {{- end }}{{/* if not eq .Values.ingress.className "traefik" */}}
   {{- end }}{{/* if .Values.ingress.auth.enabled */}}
