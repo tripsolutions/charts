@@ -93,5 +93,6 @@ spec:
     {{- end}}{{ end }}{{ end }}{{/* range hostnames, range frontends, if $.Values.frontends.enabled */}}
     secretName: {{ $name }}-cert
   {{- end }}{{/* if $.Values.ingress.tls */}}
+---
 {{- end }}{{/* for each ingress class */}}
 {{- end }}{{/* if .Values.ingress.enabled */}}
