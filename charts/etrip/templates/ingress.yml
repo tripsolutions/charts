@@ -1,23 +1,32 @@
 {{- if .Values.ingress.enabled -}}
+{{- $labels := include "labels" . -}}
 {{- $name := .Release.Name -}}
+{{- $ingressClasses := list -}}
+{{- if .Values.ingress.className }}{{/* split by comma and add to ingressClasses list */}}
+{{- $ingressClasses = splitList "," .Values.ingress.className -}}
+{{- else -}}
+{{- $ingressClasses = list "default" -}}{{/* we will test for value "default" to omit the ingressClassName field */ -}}
+{{- end -}}{{/* if .Values.ingress.className */}}
+{{- range $class := $ingressClasses }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ $name }}-web
-  namespace: {{ .Release.Namespace }}
+  {{- /* name should not have a class suffix if the ingress class is default or the number of ingress classes is one */}}
+  name: {{ $name }}-web{{- if and (ne $class "default") (gt (len $ingressClasses) 1) }}-{{ $class }}{{- end }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "labels" . | nindent 4 }}
+    {{- $labels | nindent 4 }}
     app.kubernetes.io/component: web
-  {{- with .Values.ingress.annotations }}
+  {{- with $.Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+  {{- end }}{{/* with $.Values.ingress.annotations */}}
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
+  {{- if ne $class "default" }}
+  ingressClassName: {{ $class }}
+  {{- end }}{{/* if ne $class "default" */}}
   rules:
-  {{- with .Values.ingress.admin }}
+  {{- with $.Values.ingress.admin }}
   {{- range .hostnames }}
   - host: {{ . | quote }}
     http:
@@ -29,8 +38,8 @@ spec:
             name: {{ $name }}-service
             port:
               name: etrip
-  {{- end }}{{ end }}
-  {{- range $key, $instance := .Values.b2b }}
+  {{- end }}{{ end }}{{/* range admin hostnames, with ingress admin */}}
+  {{- range $key, $instance := $.Values.b2b }}
   {{- $b2bIngress := index $.Values.ingress.b2b $key -}}
   {{- range $b2bIngress.hostnames }}
   - host: {{ . | quote }}
@@ -50,9 +59,9 @@ spec:
             name: {{ $name }}-service
             port: 
               name: b2b-{{ $key }}
-  {{- end }}{{ end }}
-  {{- if .Values.frontends.enabled }}
-  {{- range $key, $val :=  .Values.ingress.frontends }}
+  {{- end }}{{ end }}{{/* range b2b hostnames,range b2b instances */}}
+  {{- if $.Values.frontends.enabled }}
+  {{- range $key, $val :=  $.Values.ingress.frontends }}
   {{- range $host := $val.hostnames}}
   - host: {{ $host }}
     http:
@@ -64,24 +73,25 @@ spec:
             name: {{ $name }}-service
             port: 
               name: frontend-{{ $key }}
-  {{- end}}{{ end }}{{ end }}
-  {{- if .Values.ingress.tls }}
+  {{- end }}{{ end }}{{ end }}{{/* range hostnames, range frontends, if $.Values.frontends.enabled */}}
+  {{- if $.Values.ingress.tls }}
   tls:
   - hosts:
-    {{- with .Values.ingress.admin }}
+    {{- with $.Values.ingress.admin }}
     {{- range .hostnames }}
     - {{ . | quote }}
-    {{- end }}{{ end }}
-    {{- range $key, $instance := .Values.b2b }}
+    {{- end }}{{ end }}{{/* range admin hostnames, with $.Values.ingress.admin */}}
+    {{- range $key, $instance := $.Values.b2b }}
     {{- $b2bIngress := index $.Values.ingress.b2b $key -}}
     {{- range $b2bIngress.hostnames }}
     - {{ . | quote }}
-    {{- end }}{{ end }}
-    {{- if .Values.frontends.enabled }}
-    {{- range $key, $val :=  .Values.ingress.frontends }}
+    {{- end }}{{ end }}{{/* range b2b hostnames,range $.Values.b2b instances */}}
+    {{- if $.Values.frontends.enabled }}
+    {{- range $key, $val :=  $.Values.ingress.frontends }}
     {{- range $host := $val.hostnames}}
     - {{ $host | quote }}
-    {{- end}}{{ end }}{{ end }}
+    {{- end}}{{ end }}{{ end }}{{/* range hostnames, range frontends, if $.Values.frontends.enabled */}}
     secretName: {{ $name }}-cert
-  {{- end }}
-{{- end }}
+  {{- end }}{{/* if $.Values.ingress.tls */}}
+{{- end }}{{/* for each ingress class */}}
+{{- end }}{{/* if .Values.ingress.enabled */}}
