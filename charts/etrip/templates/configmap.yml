@@ -168,6 +168,10 @@ data:
             auth_basic off;
             try_files $uri /apiv2/index.php$is_args$args;
           }
+
+          location /internal-api {
+            try_files $uri /internal-api/index.php$is_args$args;
+          }
  
           location /swagger {
             auth_basic off;
