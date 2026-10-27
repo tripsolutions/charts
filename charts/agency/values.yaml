@@ -1,5 +1,6 @@
 replicas:
   web: 1
+  beta_ui: 1
   db: 2
 
 # to override chart app version (advertised and tag)
@@ -16,6 +17,13 @@ image:
   # clientTag: ""
   # # to override rescheck image tag
   # rescheckTag: ""
+
+# adds a deployment for a beta client, links /beta route
+beta_ui:
+  enabled: false
+  route: /beta
+  image: ghcr.io/tripsol/agency-client-vue3:main
+  imagePullPolicy: Always
 
 ingress:
   enabled: false
@@ -392,6 +400,13 @@ resources:
   # don't override operator defaults
   db: {}
   web:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  beta_ui:
     limits:
       cpu: 500m
       memory: 200Mi

@@ -29,6 +29,15 @@ spec:
             name: {{ $name }}-admin
             port:
               name: api
+      {{- if $.Values.beta_ui.enabled }}
+      - pathType: Prefix
+        path: {{ $.Values.beta_ui.route }}
+        backend:
+          service:
+            name: {{ $name }}-beta
+            port:
+              name: http
+      {{- end }}{{/* if $.Values.beta_ui.enabled */}}
       - pathType: Prefix
         path: /
         backend:
