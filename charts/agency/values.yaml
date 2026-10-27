@@ -22,7 +22,7 @@ image:
 beta_ui:
   enabled: false
   route: /beta
-  image: ghcr.io/tripsol/agency-client-vue3:main
+  image: ghcr.io/tripsolutions/agency_client_vue3:main
   imagePullPolicy: Always
 
 ingress:
